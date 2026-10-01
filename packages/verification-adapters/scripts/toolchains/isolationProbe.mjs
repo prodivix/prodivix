@@ -194,8 +194,7 @@ if (process.platform === 'linux') {
     mountInfo.split('\n').some((line) => {
       const [before, after] = line.split(' - ');
       return (
-        before?.split(' ')[4] === mountPoint &&
-        after?.split(' ')[0] === 'tmpfs'
+        before?.split(' ')[4] === mountPoint && after?.split(' ')[0] === 'tmpfs'
       );
     });
   const readControl = (name) =>

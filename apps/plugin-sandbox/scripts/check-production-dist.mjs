@@ -6,8 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const appRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const distRoot = path.join(appRoot, 'dist');
-const readDist = (fileName) =>
-  readFile(path.join(distRoot, fileName), 'utf8');
+const readDist = (fileName) => readFile(path.join(distRoot, fileName), 'utf8');
 const digest = (source) =>
   `sha256-${createHash('sha256').update(source).digest('base64')}`;
 
@@ -64,7 +63,10 @@ for (const [route, policy] of Object.entries(headers)) {
   assert.match(policy['Permissions-Policy'], /camera=\(\)/);
 
   assert.match(cloudflareHeaders, new RegExp(`^${route}$`, 'm'));
-  assert.match(nginxConfig, new RegExp(`location = ${route.replaceAll('.', '\\.')} \\{`));
+  assert.match(
+    nginxConfig,
+    new RegExp(`location = ${route.replaceAll('.', '\\.')} \\{`)
+  );
   for (const [name, value] of Object.entries(policy)) {
     assert.ok(cloudflareHeaders.includes(`  ${name}: ${value}`));
     assert.ok(nginxConfig.includes(`add_header ${name} "${value}" always;`));

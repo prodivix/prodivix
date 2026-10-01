@@ -29,7 +29,8 @@ for (const path of testFiles) {
     throw error;
   }
   const usesPropertyTesting =
-    /from\s+['"]fast-check['"]/.test(source) || /\bfc\.assert\s*\(/.test(source);
+    /from\s+['"]fast-check['"]/.test(source) ||
+    /\bfc\.assert\s*\(/.test(source);
   if (usesPropertyTesting && !/\.property\.test\.[jt]sx?$/.test(path)) {
     issues.push(
       `${path} uses property testing and must be named <subject>.property.test.ts(x).`

@@ -178,10 +178,12 @@ export const createControlledStaticRootlessToolchainFileAuthority = (
 
 const readControlledStaticRootlessToolchainFileAuthority = async () => {
   const entries = await Promise.all(
-    TOOLCHAIN_AUTHORITY_FILES.map(async ({ path, workspacePath: sourcePath }) => [
-      path,
-      await readFile(workspacePath(sourcePath)),
-    ])
+    TOOLCHAIN_AUTHORITY_FILES.map(
+      async ({ path, workspacePath: sourcePath }) => [
+        path,
+        await readFile(workspacePath(sourcePath)),
+      ]
+    )
   );
   return createControlledStaticRootlessToolchainFileAuthority(
     Object.fromEntries(entries)
@@ -199,7 +201,9 @@ const assertControlledStaticRootlessToolchainFileAuthority = (
     (expected.isolationProbeDigest !== undefined &&
       observed.isolationProbeDigest !== expected.isolationProbeDigest)
   ) {
-    throw new TypeError('Controlled rootless toolchain file authority drifted.');
+    throw new TypeError(
+      'Controlled rootless toolchain file authority drifted.'
+    );
   }
 };
 

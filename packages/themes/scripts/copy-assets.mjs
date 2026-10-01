@@ -2,7 +2,10 @@ import { cpSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const assets = [
-  ['src/schema/themeManifest.schema.json', 'dist/schema/themeManifest.schema.json'],
+  [
+    'src/schema/themeManifest.schema.json',
+    'dist/schema/themeManifest.schema.json',
+  ],
   ['src/palette/defaultPalette.json', 'dist/palette/defaultPalette.json'],
   ['src/css/font-stacks.css', 'dist/css/font-stacks.css'],
 ];

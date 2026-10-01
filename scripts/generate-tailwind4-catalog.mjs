@@ -18,7 +18,12 @@ const outputPath = path.join(
 
 const loadStylesheet = async (id, base) => {
   if (id === 'tailwindcss') {
-    const file = path.join(workspaceRoot, 'node_modules', 'tailwindcss', 'index.css');
+    const file = path.join(
+      workspaceRoot,
+      'node_modules',
+      'tailwindcss',
+      'index.css'
+    );
     return {
       path: file,
       base: path.dirname(file),
@@ -34,10 +39,13 @@ const loadStylesheet = async (id, base) => {
   };
 };
 
-const designSystem = await __unstable__loadDesignSystem('@import "tailwindcss";', {
-  base: workspaceRoot,
-  loadStylesheet,
-});
+const designSystem = await __unstable__loadDesignSystem(
+  '@import "tailwindcss";',
+  {
+    base: workspaceRoot,
+    loadStylesheet,
+  }
+);
 
 const classes = designSystem
   .getClassList()
@@ -59,4 +67,6 @@ const payload = {
 };
 
 await fs.writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-console.log(`Wrote ${classes.length} classes and ${variants.length} variants to ${outputPath}`);
+console.log(
+  `Wrote ${classes.length} classes and ${variants.length} variants to ${outputPath}`
+);

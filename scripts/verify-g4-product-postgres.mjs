@@ -48,7 +48,9 @@ const forward = (stream, destination) => {
 forward(child.stdout, process.stdout);
 forward(child.stderr, process.stderr);
 child.once('error', (error) => {
-  console.error(`Unable to start the G4 V7 PostgreSQL product Gate: ${error.message}`);
+  console.error(
+    `Unable to start the G4 V7 PostgreSQL product Gate: ${error.message}`
+  );
   process.exitCode = 1;
 });
 child.once('close', (code, signal) => {

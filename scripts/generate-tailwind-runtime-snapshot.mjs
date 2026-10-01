@@ -4,7 +4,12 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const workspaceRoot = process.cwd();
-const configPath = path.join(workspaceRoot, 'apps', 'web', 'tailwind.config.ts');
+const configPath = path.join(
+  workspaceRoot,
+  'apps',
+  'web',
+  'tailwind.config.ts'
+);
 const outputPath = path.join(
   workspaceRoot,
   'apps',
@@ -20,7 +25,9 @@ const outputPath = path.join(
 );
 
 const toObject = (value) =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {};
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value
+    : {};
 
 const collectSection = (theme, key) => {
   const base = toObject(theme?.[key]);
@@ -33,7 +40,11 @@ const collectTokenKeys = (value, prefix = '', result = new Set()) => {
   Object.entries(value).forEach(([key, nested]) => {
     const current =
       key === 'DEFAULT' ? prefix : prefix ? `${prefix}-${key}` : key;
-    if (typeof nested === 'object' && nested !== null && !Array.isArray(nested)) {
+    if (
+      typeof nested === 'object' &&
+      nested !== null &&
+      !Array.isArray(nested)
+    ) {
       collectTokenKeys(nested, current, result);
       if ('DEFAULT' in nested && current) result.add(current);
       return;

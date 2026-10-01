@@ -103,11 +103,7 @@ export const GENERATED_OFFICIAL_PLUGIN_CATALOG = ${JSON.stringify(
 )} as const satisfies GeneratedOfficialPluginCatalog;
 `;
 
-const formatGeneratedSource = async (
-  source,
-  parser,
-  absolutePackageRoot
-) => {
+const formatGeneratedSource = async (source, parser, absolutePackageRoot) => {
   const configured =
     (await resolveConfig(path.join(absolutePackageRoot, 'package.json'))) ?? {};
   return format(source, { ...configured, parser });
@@ -127,7 +123,8 @@ const uniqueBy = (items, select, label) => {
   const seen = new Set();
   for (const item of items) {
     const key = select(item);
-    if (seen.has(key)) throw new Error(`${label} ${JSON.stringify(key)} is duplicated.`);
+    if (seen.has(key))
+      throw new Error(`${label} ${JSON.stringify(key)} is duplicated.`);
     seen.add(key);
   }
   return seen;
@@ -136,7 +133,8 @@ const uniqueBy = (items, select, label) => {
 const readJsonResourceValue = (resourcesByPath, resourcePath, label) => {
   const resource = resourcesByPath.get(resourcePath);
   if (!resource) throw new Error(`${label} ${resourcePath} does not exist.`);
-  if (!isRecord(resource.value)) throw new Error(`${label} must be a JSON object.`);
+  if (!isRecord(resource.value))
+    throw new Error(`${label} must be a JSON object.`);
   return resource.value;
 };
 
@@ -145,10 +143,14 @@ const validateOfficialSupportMatrixShape = (matrix) => {
     throw new Error('Official support matrix schemaVersion must be "1.0".');
   }
   if (!isRecord(matrix.catalog) || !isRecord(matrix.library)) {
-    throw new Error('Official support matrix requires catalog and library objects.');
+    throw new Error(
+      'Official support matrix requires catalog and library objects.'
+    );
   }
   if (!isRecord(matrix.library.package)) {
-    throw new Error('Official support matrix requires a library package coordinate.');
+    throw new Error(
+      'Official support matrix requires a library package coordinate.'
+    );
   }
   if (!Array.isArray(matrix.hostPackages) || matrix.hostPackages.length === 0) {
     throw new Error('Official support matrix requires hostPackages.');
@@ -166,8 +168,14 @@ const validateOfficialSupportMatrixShape = (matrix) => {
     if (!isRecord(component)) {
       throw new Error(`support-matrix components[${index}] must be an object.`);
     }
-    const support = requireString(component.support, `components[${index}].support`);
-    const creation = requireString(component.creation, `components[${index}].creation`);
+    const support = requireString(
+      component.support,
+      `components[${index}].support`
+    );
+    const creation = requireString(
+      component.creation,
+      `components[${index}].creation`
+    );
     if (!OFFICIAL_SUPPORT_STATUSES.has(support)) {
       throw new Error(`components[${index}].support is not supported.`);
     }
@@ -265,7 +273,9 @@ const validateOfficialSupportMatrixShape = (matrix) => {
 
   const hostPackages = matrix.hostPackages.map((coordinate, index) => {
     if (!isRecord(coordinate)) {
-      throw new Error(`support-matrix hostPackages[${index}] must be an object.`);
+      throw new Error(
+        `support-matrix hostPackages[${index}] must be an object.`
+      );
     }
     return Object.freeze({
       name: requireString(coordinate.name, `hostPackages[${index}].name`),
@@ -293,7 +303,10 @@ const validateOfficialSupportMatrixShape = (matrix) => {
         'library.displayName'
       ),
       package: Object.freeze({
-        name: requireString(matrix.library.package.name, 'library.package.name'),
+        name: requireString(
+          matrix.library.package.name,
+          'library.package.name'
+        ),
         version: requireString(
           matrix.library.package.version,
           'library.package.version'
@@ -356,7 +369,9 @@ const descriptorEntriesFromManifest = (
 const exactlyOne = (entries, point) => {
   const matches = entries.filter((entry) => entry.declaration.point === point);
   if (matches.length !== 1) {
-    throw new Error(`Official component plugin requires exactly one ${point} contribution.`);
+    throw new Error(
+      `Official component plugin requires exactly one ${point} contribution.`
+    );
   }
   return matches[0];
 };
@@ -364,7 +379,9 @@ const exactlyOne = (entries, point) => {
 const optionalOne = (entries, point) => {
   const matches = entries.filter((entry) => entry.declaration.point === point);
   if (matches.length > 1) {
-    throw new Error(`Official component plugin allows at most one ${point} contribution.`);
+    throw new Error(
+      `Official component plugin allows at most one ${point} contribution.`
+    );
   }
   return matches[0];
 };
@@ -374,7 +391,11 @@ const assertExactSet = (actual, expected, label) => {
   const expectedSet = new Set(expected);
   const missing = [...expectedSet].filter((item) => !actualSet.has(item));
   const extra = [...actualSet].filter((item) => !expectedSet.has(item));
-  if (actualSet.size !== actual.length || missing.length > 0 || extra.length > 0) {
+  if (
+    actualSet.size !== actual.length ||
+    missing.length > 0 ||
+    extra.length > 0
+  ) {
     throw new Error(
       `${label} does not match the support matrix` +
         `${missing.length > 0 ? `; missing ${missing.join(', ')}` : ''}` +
@@ -389,11 +410,18 @@ const validateOfficialComponentClosure = ({
   matrix,
   entries,
 }) => {
-  if (packageJson.name !== manifest.id || packageJson.version !== manifest.version) {
-    throw new Error('Package name/version must match the official Plugin Manifest.');
+  if (
+    packageJson.name !== manifest.id ||
+    packageJson.version !== manifest.version
+  ) {
+    throw new Error(
+      'Package name/version must match the official Plugin Manifest.'
+    );
   }
   if (matrix.catalog.scope !== 'component') {
-    throw new Error('Official component plugin catalog scope must be "component".');
+    throw new Error(
+      'Official component plugin catalog scope must be "component".'
+    );
   }
   const dependencyVersions = {
     ...(packageJson.dependencies ?? {}),
@@ -420,7 +448,9 @@ const validateOfficialComponentClosure = ({
     external.descriptor.package.version !== matrix.library.package.version ||
     external.descriptor.package.license !== matrix.library.package.license
   ) {
-    throw new Error('External Library identity does not match the support matrix.');
+    throw new Error(
+      'External Library identity does not match the support matrix.'
+    );
   }
   const externalDependencies = new Map(
     external.descriptor.dependencies.map((dependency) => [
@@ -474,7 +504,9 @@ const validateOfficialComponentClosure = ({
     }
   });
 
-  const paletteItems = palette.descriptor.groups.flatMap((group) => group.items);
+  const paletteItems = palette.descriptor.groups.flatMap(
+    (group) => group.items
+  );
   assertExactSet(
     paletteItems.map((item) => item.id),
     matrix.components.flatMap((component) =>
@@ -484,10 +516,7 @@ const validateOfficialComponentClosure = ({
   );
   const templateBindings = new Set(
     (templates?.descriptor.templates ?? []).map((template) =>
-      JSON.stringify([
-        template.palette.contributionId,
-        template.palette.itemId,
-      ])
+      JSON.stringify([template.palette.contributionId, template.palette.itemId])
     )
   );
   const templateRuntimeTypes = new Set(
@@ -512,7 +541,10 @@ const validateOfficialComponentClosure = ({
       component.paletteItemId,
     ]);
     if (component.creation === 'template') {
-      if (item?.runtimeType !== undefined || !templateBindings.has(bindingKey)) {
+      if (
+        item?.runtimeType !== undefined ||
+        !templateBindings.has(bindingKey)
+      ) {
         throw new Error(
           `Palette item ${component.paletteItemId} must use one template recipe.`
         );
@@ -615,9 +647,8 @@ export const generateBundledPluginArtifact = async ({
     absolutePackageRoot,
     resourceDirectory
   );
-  const normalizedManifestPath = normalizeBundledPluginResourcePath(
-    manifestPath
-  );
+  const normalizedManifestPath =
+    normalizeBundledPluginResourcePath(manifestPath);
   const files = await collectJsonFiles(absoluteResourceDirectory);
   const resourcesByPath = new Map();
   for (const file of files) {
@@ -643,7 +674,9 @@ export const generateBundledPluginArtifact = async ({
   }
   const manifestResource = resourcesByPath.get(normalizedManifestPath);
   if (!manifestResource) {
-    throw new Error(`Manifest resource ${normalizedManifestPath} does not exist.`);
+    throw new Error(
+      `Manifest resource ${normalizedManifestPath} does not exist.`
+    );
   }
   const manifest = structuredClone(manifestResource.value);
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
@@ -663,7 +696,9 @@ export const generateBundledPluginArtifact = async ({
       );
     }
     if (referencedContributionResources.has(resourcePath)) {
-      throw new Error(`Contribution resource ${resourcePath} is referenced more than once.`);
+      throw new Error(
+        `Contribution resource ${resourcePath} is referenced more than once.`
+      );
     }
     referencedContributionResources.add(resourcePath);
     const integrity = await digestService.digestSha256(
@@ -696,9 +731,8 @@ export const generateBundledPluginArtifact = async ({
         .join(' ')}`
     );
   }
-  const normalizedSupportMatrixPath = normalizeBundledPluginResourcePath(
-    supportMatrixPath
-  );
+  const normalizedSupportMatrixPath =
+    normalizeBundledPluginResourcePath(supportMatrixPath);
   const supportMatrixResource = resourcesByPath.get(
     normalizedSupportMatrixPath
   );
@@ -757,7 +791,9 @@ export const generateBundledPluginArtifact = async ({
   );
   const absoluteOutput = path.resolve(absolutePackageRoot, outputFile);
   if (check) {
-    const current = await readFile(absoluteOutput, 'utf8').catch(() => undefined);
+    const current = await readFile(absoluteOutput, 'utf8').catch(
+      () => undefined
+    );
     if (current !== output) {
       throw new Error(
         `${path.relative(process.cwd(), absoluteOutput)} is stale. Regenerate the bundled plugin artifact.`
@@ -810,7 +846,8 @@ const parseArguments = (arguments_) => {
     const value = arguments_[index + 1];
     if (!value) throw new Error(`${argument} requires a value.`);
     if (argument === '--package-root') options.packageRoot = value;
-    else if (argument === '--resource-directory') options.resourceDirectory = value;
+    else if (argument === '--resource-directory')
+      options.resourceDirectory = value;
     else if (argument === '--manifest-path') options.manifestPath = value;
     else if (argument === '--output') options.outputFile = value;
     else if (argument === '--support-matrix') options.supportMatrixPath = value;

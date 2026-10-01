@@ -169,10 +169,7 @@ const running = accepted(
 );
 const awaitingApproval = accepted(
   transitionAgentRunPhase(task, running.state, {
-    ...command(
-      'event.g4-v5.vector.awaiting-approval',
-      time.awaitingApproval
-    ),
+    ...command('event.g4-v5.vector.awaiting-approval', time.awaitingApproval),
     phase: 'awaiting-approval',
   })
 );

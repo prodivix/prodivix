@@ -183,7 +183,9 @@ const terminalResult = finalizeAgentRun(
   }
 );
 if (!terminalResult.accepted) {
-  throw new Error(terminalResult.issues.map(({ message }) => message).join('; '));
+  throw new Error(
+    terminalResult.issues.map(({ message }) => message).join('; ')
+  );
 }
 
 const repairStarted = createAgentRepairRoundReceipt({
@@ -203,7 +205,8 @@ const repairStarted = createAgentRepairRoundReceipt({
   producer,
   recordedAt: '2026-08-02T02:02:00.000Z',
 });
-const { receiptDigest: _repairStartedDigest, ...repairStartedBase } = repairStarted;
+const { receiptDigest: _repairStartedDigest, ...repairStartedBase } =
+  repairStarted;
 const repairProposalBound = createAgentRepairRoundReceipt({
   ...repairStartedBase,
   receiptId: 'receipt.g4-v6.vector.repair.proposal-bound',
@@ -270,7 +273,10 @@ export const createG4AgentVerificationCanonicalVector = () => {
     facts,
     canonicalJson: Object.freeze(
       Object.fromEntries(
-        Object.entries(facts).map(([name, fact]) => [name, canonicalJsonText(fact)])
+        Object.entries(facts).map(([name, fact]) => [
+          name,
+          canonicalJsonText(fact),
+        ])
       )
     ),
     expectedDigests: Object.freeze({

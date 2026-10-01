@@ -8,7 +8,9 @@ if (!Number.isSafeInteger(listenPort) || listenPort < 1 || listenPort > 65_535)
 const maximumTraceIdLength = 128;
 
 const canonicalHost = (value) => {
-  const host = domainToASCII(String(value).trim().toLowerCase().replace(/\.$/u, ''));
+  const host = domainToASCII(
+    String(value).trim().toLowerCase().replace(/\.$/u, '')
+  );
   if (
     !host ||
     host.length > 253 ||
@@ -32,7 +34,8 @@ const allowlist = Object.freeze(
     })
     .sort()
 );
-if (!allowlist.length) throw new TypeError('Install proxy allowlist is required.');
+if (!allowlist.length)
+  throw new TypeError('Install proxy allowlist is required.');
 
 const allowedHost = (host) =>
   allowlist.some((entry) =>
@@ -134,7 +137,12 @@ const server = net.createServer((socket) => {
         const separator = line.indexOf(':');
         return separator < 1
           ? []
-          : [[line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()]];
+          : [
+              [
+                line.slice(0, separator).trim().toLowerCase(),
+                line.slice(separator + 1).trim(),
+              ],
+            ];
       })
     );
     const request = { headers };
@@ -199,11 +207,15 @@ const server = net.createServer((socket) => {
       });
       upstream.once('error', () => {
         if (!connected)
-          socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+          socket.end(
+            'HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'
+          );
         else socket.destroy();
         finish('failed', 502);
       });
-      upstream.once('close', () => finish(connected ? 'allowed' : 'failed', connected ? 200 : 502));
+      upstream.once('close', () =>
+        finish(connected ? 'allowed' : 'failed', connected ? 200 : 502)
+      );
       socket.once('error', () => {
         upstream?.destroy();
         finish('failed', 502);
@@ -213,7 +225,9 @@ const server = net.createServer((socket) => {
         finish(connected ? 'allowed' : 'failed', connected ? 200 : 502);
       });
     } catch {
-      socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      socket.end(
+        'HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'
+      );
       finish('failed', 502);
     }
   };

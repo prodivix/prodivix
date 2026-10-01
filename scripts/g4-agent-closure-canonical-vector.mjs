@@ -123,8 +123,7 @@ export const createG4AgentClosureCanonicalVector = () => {
       requiredAttemptCount: 11_640,
       actualAttemptCount: 0,
       requiredProtocolFamilies: AGENT_G4_REQUIRED_NATIVE_PROTOCOL_FAMILIES,
-      requiredCapabilityProfileIds:
-        AGENT_G4_REQUIRED_CAPABILITY_PROFILE_IDS,
+      requiredCapabilityProfileIds: AGENT_G4_REQUIRED_CAPABILITY_PROFILE_IDS,
     },
     'summaryDigest'
   );

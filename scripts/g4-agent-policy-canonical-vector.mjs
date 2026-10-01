@@ -26,10 +26,7 @@ export const createG4AgentPolicyCanonicalVector = () => {
           'anthropic-messages',
           'openai-responses',
         ]),
-        endpointClasses: Object.freeze([
-          'first-party-hosted',
-          'self-hosted',
-        ]),
+        endpointClasses: Object.freeze(['first-party-hosted', 'self-hosted']),
         regions: Object.freeze(['cn', 'us']),
         minimumSupportTier: 'release-evaluated',
         maximumSensitivity: 'internal',

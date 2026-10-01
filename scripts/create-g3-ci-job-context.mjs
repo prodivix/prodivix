@@ -131,11 +131,7 @@ const main = async () => {
   ) {
     throw new TypeError('GitHub job is not a trusted bounded CI identity.');
   }
-  assertClaim(
-    claims,
-    'iss',
-    'https://token.actions.githubusercontent.com'
-  );
+  assertClaim(claims, 'iss', 'https://token.actions.githubusercontent.com');
   assertClaim(claims, 'repository', repository);
   assertClaim(claims, 'ref', ref);
   assertClaim(claims, 'sha', commit);
@@ -195,10 +191,7 @@ const main = async () => {
       verifiedAt: new Date().toISOString(),
     },
   });
-  const admission = assessVerificationCiPromotion(
-    context,
-    EXPECTED_AUDIENCE
-  );
+  const admission = assessVerificationCiPromotion(context, EXPECTED_AUDIENCE);
   if (admission.status !== 'allowed') {
     throw new TypeError(
       `GitHub CI job is not eligible for promotion: ${admission.reason}.`

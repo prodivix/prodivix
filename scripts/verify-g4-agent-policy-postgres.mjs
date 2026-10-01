@@ -63,8 +63,7 @@ child.once('close', (code, signal) => {
     return;
   }
   const missing = requiredTests.filter(
-    (testName) =>
-      !observedRuns.has(testName) || !observedPasses.has(testName)
+    (testName) => !observedRuns.has(testName) || !observedPasses.has(testName)
   );
   if (missing.length > 0) {
     console.error(

@@ -175,9 +175,7 @@ test.describe('plugin sandbox production conformance', () => {
     expect(ui.headers()['content-security-policy']).toContain(
       "worker-src 'none'"
     );
-    expect(ui.headers()['cross-origin-embedder-policy']).toBe(
-      'credentialless'
-    );
+    expect(ui.headers()['cross-origin-embedder-policy']).toBe('credentialless');
     expect(ui.headers()['referrer-policy']).toBe('no-referrer');
     const runtimeScript = await request.get(
       `${sandboxOrigin}/runtime-broker.js`

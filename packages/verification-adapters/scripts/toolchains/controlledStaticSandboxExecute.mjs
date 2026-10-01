@@ -1,11 +1,5 @@
 import { createHash } from 'node:crypto';
-import {
-  lstat,
-  mkdir,
-  readFile,
-  readdir,
-  writeFile,
-} from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   assertControlledStageSucceeded,
@@ -23,10 +17,7 @@ const BUILD_ROOT = `${OUTPUT_ROOT}/build`;
 const plan = await readControlledSandboxPlan();
 const environment = controlledExecutionEnvironment();
 const installReceipts = JSON.parse(
-  await readFile(
-    '.prodivix/controlled-static-install-receipts.json',
-    'utf8'
-  )
+  await readFile('.prodivix/controlled-static-install-receipts.json', 'utf8')
 );
 if (
   installReceipts?.format !==
@@ -48,10 +39,7 @@ const isolation = await runControlledSandboxStage({
   application: 'node',
   args: ['.prodivix/isolation-probe.mjs'],
   environmentDigest: environment.digest,
-  tool: nodeTool(
-    '.prodivix/isolation-probe.mjs',
-    plan.isolationProbeDigest
-  ),
+  tool: nodeTool('.prodivix/isolation-probe.mjs', plan.isolationProbeDigest),
   timeoutMs: 30_000,
 });
 assertControlledStageSucceeded(isolation);
@@ -62,8 +50,7 @@ try {
   throw new TypeError('Controlled sandbox isolation result is invalid.');
 }
 if (
-  isolationResult?.format !==
-    'prodivix.controlled-static-isolation-probe.v1' ||
+  isolationResult?.format !== 'prodivix.controlled-static-isolation-probe.v1' ||
   isolationResult.egressAttemptCount !== 5 ||
   isolationResult.egressSuccessCount !== 0
 ) {
@@ -185,11 +172,7 @@ const buildCommandLine = Buffer.from(
   `$ ${build.receipt.application} ${build.receipt.args.join(' ')}\n`,
   'utf8'
 );
-const buildLog = Buffer.concat([
-  buildCommandLine,
-  build.stdout,
-  build.stderr,
-]);
+const buildLog = Buffer.concat([buildCommandLine, build.stdout, build.stderr]);
 await writeFile(`${PRIVATE_ROOT}/build-log.txt`, buildLog, {
   flag: 'wx',
   mode: 0o600,

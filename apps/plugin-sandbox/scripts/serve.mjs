@@ -26,7 +26,8 @@ const contentTypes = {
 
 const server = createServer((request, response) => {
   const requestUrl = new URL(request.url ?? '/', `http://${host}:${port}`);
-  const route = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
+  const route =
+    requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
   let decodedRoute;
   try {
     decodedRoute = decodeURIComponent(route);
@@ -55,8 +56,7 @@ const server = createServer((request, response) => {
   };
   response.writeHead(200, {
     ...routeHeaders,
-    'Content-Type':
-      contentTypes[path.extname(filePath)] ?? contentTypes[''],
+    'Content-Type': contentTypes[path.extname(filePath)] ?? contentTypes[''],
   });
   if (request.method === 'HEAD') {
     response.end();

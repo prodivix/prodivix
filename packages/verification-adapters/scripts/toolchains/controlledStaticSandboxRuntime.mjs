@@ -31,10 +31,15 @@ const relativePath = (value) => {
     value !== value.normalize('NFC') ||
     value.includes('\\') ||
     value.startsWith('/') ||
-    value.split('/').some(
-      (segment) =>
-        !segment || segment === '.' || segment === '..' || segment.includes(':')
-    )
+    value
+      .split('/')
+      .some(
+        (segment) =>
+          !segment ||
+          segment === '.' ||
+          segment === '..' ||
+          segment.includes(':')
+      )
   ) {
     throw new TypeError('Controlled sandbox path is invalid.');
   }
@@ -85,7 +90,9 @@ export const readControlledSandboxPlan = async () => {
       plan.lockDigest,
       plan.toolchainFileSetDigest,
       plan.isolationProbeDigest,
-    ].every((digest) => typeof digest === 'string' && SHA256_PATTERN.test(digest)) ||
+    ].every(
+      (digest) => typeof digest === 'string' && SHA256_PATTERN.test(digest)
+    ) ||
     (plan.presetId !== 'react-vite' && plan.presetId !== 'vue-vite') ||
     ![
       plan.pnpmVersion,
@@ -176,10 +183,7 @@ const outputCollector = () => {
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       hash.update(bytes);
       byteLength += bytes.byteLength;
-      const remaining = Math.max(
-        0,
-        MAXIMUM_CAPTURE_BYTES - capturedByteLength
-      );
+      const remaining = Math.max(0, MAXIMUM_CAPTURE_BYTES - capturedByteLength);
       const accepted = bytes.subarray(0, remaining);
       if (accepted.byteLength) {
         captured.push(accepted);

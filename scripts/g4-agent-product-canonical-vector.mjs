@@ -96,7 +96,10 @@ export const createG4AgentProductCanonicalVector = () => {
   return Object.freeze({
     format: 'prodivix.agent-product-canonical-vector',
     version: 1,
-    control: Object.freeze({ task: control.facts.task, run: finalRecovery.run }),
+    control: Object.freeze({
+      task: control.facts.task,
+      run: finalRecovery.run,
+    }),
     facts,
     view: viewWire,
     canonicalJson: Object.freeze({

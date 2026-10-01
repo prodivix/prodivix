@@ -13,7 +13,9 @@ const manifestPath = path.join(
 );
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 if (!Number.isSafeInteger(manifest.version) || manifest.version < 1) {
-  throw new Error('NodeGraph activation manifest must contain a positive version.');
+  throw new Error(
+    'NodeGraph activation manifest must contain a positive version.'
+  );
 }
 const snapshotPath = path.join(
   snapshotDirectory,

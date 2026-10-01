@@ -5,7 +5,7 @@ const RELEASE_TYPES = new Set(['patch', 'minor', 'major']);
 const PACKAGE_PATHS = [
   'packages/shared/package.json',
   'packages/themes/package.json',
-  'packages/ui/package.json'
+  'packages/ui/package.json',
 ];
 
 const releaseType = process.argv[2];
@@ -18,7 +18,10 @@ if (!RELEASE_TYPES.has(releaseType)) {
 function bumpVersion(version) {
   const parts = version.split('.').map((part) => Number.parseInt(part, 10));
 
-  if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part) || part < 0)) {
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0)
+  ) {
     throw new Error(`Unsupported semver version: ${version}`);
   }
 
@@ -41,6 +44,10 @@ for (const packagePath of PACKAGE_PATHS) {
   const nextVersion = bumpVersion(packageJson.version);
 
   packageJson.version = nextVersion;
-  await fs.writeFile(absolutePath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    absolutePath,
+    `${JSON.stringify(packageJson, null, 2)}\n`,
+    'utf8'
+  );
   console.log(`${packageJson.name}@${nextVersion}`);
 }

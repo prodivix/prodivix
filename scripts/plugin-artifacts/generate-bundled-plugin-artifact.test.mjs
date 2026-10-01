@@ -317,10 +317,7 @@ const officialGenerated = await generateBundledPluginArtifact({
   packageRoot: officialDirectory,
 });
 assert.equal(officialGenerated.catalog.support.total, 2);
-assert.equal(
-  officialGenerated.catalog.components[1].creation,
-  'template-only'
-);
+assert.equal(officialGenerated.catalog.components[1].creation, 'template-only');
 assert.deepEqual(officialGenerated.catalog.unsupportedRuntimeTypes, [
   'FixtureLegacyAccordion',
 ]);

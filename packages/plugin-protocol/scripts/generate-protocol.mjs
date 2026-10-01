@@ -92,14 +92,14 @@ for (const contract of contracts) {
     schemaForTypeGeneration(schema),
     contract.rootType,
     {
-    bannerComment: `/* eslint-disable */\n${notice}`,
-    format: false,
-    ignoreMinAndMaxItems: true,
-    style: {
-      singleQuote: true,
-      semi: true,
-      tabWidth: 2,
-    },
+      bannerComment: `/* eslint-disable */\n${notice}`,
+      format: false,
+      ignoreMinAndMaxItems: true,
+      style: {
+        singleQuote: true,
+        semi: true,
+        tabWidth: 2,
+      },
     }
   );
   const generatedSchemaModule = `${notice}
@@ -148,8 +148,8 @@ const validatorExports = Object.fromEntries(
     ['validateRuntimeImplementationSchema', contracts[2]],
     ['validateGatewayEnvelopeSchema', contracts[3]],
   ].map(([exportName, contract]) => {
-    const schema = schemas.find(
-      (candidate) => candidate.$id.endsWith(contract.schemaFile)
+    const schema = schemas.find((candidate) =>
+      candidate.$id.endsWith(contract.schemaFile)
     );
     if (!schema) {
       throw new Error(`Missing loaded schema for ${contract.schemaFile}.`);

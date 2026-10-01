@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repositoryDirectory = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..'
+);
 const backendDirectory = resolve(repositoryDirectory, 'apps/backend');
 const pnpmCli = process.env.npm_execpath;
 
@@ -45,7 +48,10 @@ const pnpmCheck = (label, arguments_) => ({
 const checks = [
   pnpmCheck('Core package boundaries', ['run', 'check:core-boundaries']),
   pnpmCheck('Authoring write-path hard cuts', ['run', 'check:editor-hard-cut']),
-  pnpmCheck('Property-test naming contract', ['run', 'check:property-test-names']),
+  pnpmCheck('Property-test naming contract', [
+    'run',
+    'check:property-test-names',
+  ]),
   pnpmCheck('Diagnostic catalog conformance', [
     'run',
     'docs:diagnostics:check',

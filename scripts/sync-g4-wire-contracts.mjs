@@ -28,9 +28,22 @@ import { createG4AgentClosureCanonicalVector } from './g4-agent-closure-canonica
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targets = [
-  { label: 'Agent runtime repair canonical vector', target: path.join(root, 'apps/backend/internal/platform/agentcontract/testdata/agent-runtime-repair-vector.json'), value: createG4AgentRuntimeRepairCanonicalVector() },
-  { label: 'Agent repair Task canonical vector', target: path.join(root, 'apps/backend/internal/platform/agentcontract/testdata/agent-repair-task-vector.json'),
-    value: createG4AgentRepairTaskCanonicalVector() },
+  {
+    label: 'Agent runtime repair canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-runtime-repair-vector.json'
+    ),
+    value: createG4AgentRuntimeRepairCanonicalVector(),
+  },
+  {
+    label: 'Agent repair Task canonical vector',
+    target: path.join(
+      root,
+      'apps/backend/internal/platform/agentcontract/testdata/agent-repair-task-vector.json'
+    ),
+    value: createG4AgentRepairTaskCanonicalVector(),
+  },
   {
     label: 'Agent',
     target: path.join(
@@ -116,8 +129,14 @@ const targets = [
   },
 ];
 const mode = process.argv[2] ?? 'check';
-targets.push({ label: 'Agent Task output canonical vector', target: path.join(root,
-  'apps/backend/internal/platform/agentcontract/testdata/agent-task-output-vector.json'), value: createG4AgentTaskOutputCanonicalVector() });
+targets.push({
+  label: 'Agent Task output canonical vector',
+  target: path.join(
+    root,
+    'apps/backend/internal/platform/agentcontract/testdata/agent-task-output-vector.json'
+  ),
+  value: createG4AgentTaskOutputCanonicalVector(),
+});
 
 for (const { label, target, value } of targets) {
   const prettierConfig = (await resolveConfig(target)) ?? {};

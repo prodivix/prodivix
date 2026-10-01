@@ -15,6 +15,7 @@ on:
       - apps/backend/Dockerfile
       - apps/plugin-sandbox/**
       - apps/web/Dockerfile
+      - apps/web/docker/nginx.conf
       - .dockerignore
       - package.json
       - pnpm-lock.yaml
@@ -29,6 +30,8 @@ jobs:
   deploy-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      SMOKE_DATABASE_PASSWORD: 'Deployment smoke space ''single'' "double" $literal \backslash / @ % +'
 
     steps:
       - name: Checkout
@@ -44,9 +47,17 @@ jobs:
         env:
           IMAGE_TAG: deploy-smoke-${{ github.sha }}
         run: |
-          docker build --file apps/backend/Dockerfile --tag "ghcr.io/mdr-tutorials/prodivix-backend:$IMAGE_TAG" .
-          docker build --file apps/plugin-sandbox/Dockerfile --tag "ghcr.io/mdr-tutorials/prodivix-plugin-sandbox:$IMAGE_TAG" .
-          docker build --file apps/web/Dockerfile --build-arg VITE_API_BASE=/ --build-arg VITE_PLUGIN_SANDBOX_URL=http://127.0.0.1:4174/runtime-broker.html --tag "ghcr.io/mdr-tutorials/prodivix-web:$IMAGE_TAG" .
+          docker build --file apps/backend/Dockerfile --tag "ghcr.io/prodivix/prodivix-backend:$IMAGE_TAG" .
+          docker build --file apps/plugin-sandbox/Dockerfile --tag "ghcr.io/prodivix/prodivix-plugin-sandbox:$IMAGE_TAG" .
+          docker build --file apps/web/Dockerfile --build-arg VITE_API_BASE=/ --build-arg VITE_PLUGIN_SANDBOX_URL=http://127.0.0.1:4174/runtime-broker.html --tag "ghcr.io/prodivix/prodivix-web:$IMAGE_TAG" .
+
+      - name: Seed a synthetic password with dotenv and database reserved characters
+        run: |
+          set -euo pipefail
+          . deploy/password-env.sh
+          umask 077
+          encoded_password="$(encode_postgres_password "$SMOKE_DATABASE_PASSWORD")"
+          printf 'POSTGRES_PASSWORD=%s\n' "$encoded_password" > deploy/.env
 
       - name: Run current-source deployment
         if: github.event_name == 'push'
@@ -107,11 +118,132 @@ jobs:
             printf '%s\n' "$headers" | grep -qi '^Cross-Origin-Embedder-Policy: credentialless'
           done
 
-      - name: Verify artifact volume survives backend recreation
+      - name: Verify browser origins avatar proxy and persisted storage after backend recreation
         run: |
-          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env exec -T backend sh -c 'printf artifact-volume-probe > /app/data/verification/deployment-smoke-probe'
-          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env up -d --force-recreate --no-deps backend
-          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env exec -T backend sh -c 'test "$(cat /app/data/verification/deployment-smoke-probe)" = artifact-volume-probe && rm /app/data/verification/deployment-smoke-probe'
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { setTimeout } from 'node:timers/promises';
+
+          const base = 'http://127.0.0.1:4173';
+          const email = `deployment-smoke-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}@example.test`;
+          const password = 'Synthetic deployment user password ! @ % +';
+          const compose = ['compose', '-f', 'deploy/docker-compose.ghcr.yml', '--env-file', 'deploy/.env'];
+          const databasePassword = process.env.SMOKE_DATABASE_PASSWORD;
+          assert.ok(typeof databasePassword === 'string' && databasePassword.length > 0, 'Synthetic database password must be configured.');
+          for (const [service, check] of [
+            ['postgres', 'test "$POSTGRES_PASSWORD" = "$1"'],
+            ['backend', 'test "$BACKEND_DB_PASSWORD" = "$1"'],
+          ]) {
+            execFileSync('docker', [...compose, 'exec', '-T', service, 'sh', '-c', check, 'sh', databasePassword], { stdio: 'pipe' });
+          }
+          const request = (path, init = {}) => fetch(new URL(path, base), {
+            redirect: 'error',
+            signal: AbortSignal.timeout(10_000),
+            ...init,
+          });
+          const json = async (response) => {
+            try {
+              return await response.json();
+            } catch {
+              throw new Error('Deployment API returned invalid JSON.');
+            }
+          };
+          const login = async (origin) => {
+            const response = await request('/api/auth/login', {
+              method: 'POST',
+              headers: { Origin: origin, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password }),
+            });
+            assert.equal(response.status, 200, 'Allowed browser origin must permit login.');
+            assert.equal(response.headers.get('access-control-allow-origin'), origin);
+            const session = await json(response);
+            assert.ok(typeof session.token === 'string' && session.token.length > 0, 'Login must issue a session.');
+            assert.ok(typeof session.user?.id === 'string', 'Login must return a public user.');
+            return session;
+          };
+
+          const registration = await request('/api/auth/register', {
+            method: 'POST',
+            headers: { Origin: base, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, name: 'Deployment Smoke' }),
+          });
+          assert.equal(registration.status, 201, 'Loopback browser registration must reach PostgreSQL.');
+          assert.equal(registration.headers.get('access-control-allow-origin'), base);
+          const session = await login(base);
+          assert.equal((await login('http://localhost:4173')).user.id, session.user.id);
+          const foreign = await request('/api/auth/login', {
+            method: 'POST',
+            headers: { Origin: 'https://foreign.example.test', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          assert.equal(foreign.status, 403, 'Foreign browser origin must be denied.');
+          assert.equal(foreign.headers.get('access-control-allow-origin'), null);
+
+          const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6xsAAAAASUVORK5CYII=', 'base64');
+          const avatar = Buffer.alloc(1_310_720);
+          png.copy(avatar);
+          const avatarDigest = createHash('sha256').update(avatar).digest('hex');
+          const form = () => {
+            const body = new FormData();
+            body.set('avatar', new Blob([avatar], { type: 'image/png' }), 'deployment-smoke.png');
+            return body;
+          };
+          const unauthorized = await request('/api/users/me/avatar', {
+            method: 'PUT',
+            headers: { Origin: base },
+            body: form(),
+          });
+          assert.equal(unauthorized.status, 401, 'A large unauthorized avatar must reach Backend auth instead of nginx 413.');
+          const upload = await request('/api/users/me/avatar', {
+            method: 'PUT',
+            headers: { Origin: base, Authorization: `Bearer ${session.token}` },
+            body: form(),
+          });
+          assert.equal(upload.status, 200, 'An authenticated avatar larger than 1 MiB must upload.');
+          const updated = await json(upload);
+          const avatarPath = updated.user?.avatarUrl;
+          assert.ok(typeof avatarPath === 'string' && avatarPath.startsWith(`/uploads/avatars/${session.user.id}/`), 'Avatar URL must identify this user in the public uploads route.');
+          assert.equal(new URL(avatarPath, base).origin, base);
+          const assertAvatar = async () => {
+            const response = await request(avatarPath, { headers: { Origin: base } });
+            assert.equal(response.status, 200, 'The public same-origin avatar proxy must return the stored image.');
+            assert.equal(response.headers.get('content-type')?.split(';')[0], 'image/png');
+            const bytes = Buffer.from(await response.arrayBuffer());
+            assert.equal(bytes.length, avatar.length);
+            assert.equal(createHash('sha256').update(bytes).digest('hex'), avatarDigest);
+          };
+          await assertAvatar();
+          const missing = await request('/uploads/avatars/deployment-smoke-missing.png', { headers: { Origin: base } });
+          assert.equal(missing.status, 404, 'Unknown uploads must not return the SPA fallback.');
+
+          execFileSync('docker', [...compose, 'exec', '-T', 'backend', 'sh', '-c', 'printf artifact-volume-probe > /app/data/verification/deployment-smoke-probe'], { stdio: 'inherit' });
+          execFileSync('docker', [...compose, 'up', '-d', '--force-recreate', '--no-deps', 'backend'], { stdio: 'inherit' });
+          let healthy = false;
+          for (let attempt = 0; attempt < 30; attempt += 1) {
+            try {
+              const response = await request('/api/ping', { headers: { Origin: base } });
+              if (response.status === 200) {
+                healthy = true;
+                break;
+              }
+            } catch {}
+            await setTimeout(2_000);
+          }
+          assert.ok(healthy, 'The recreated Backend must become healthy through the web proxy.');
+          execFileSync('docker', [...compose, 'exec', '-T', 'backend', 'sh', '-c', 'test "$(cat /app/data/verification/deployment-smoke-probe)" = artifact-volume-probe && rm /app/data/verification/deployment-smoke-probe'], { stdio: 'inherit' });
+          await assertAvatar();
+          const restored = await request('/api/auth/me', {
+            headers: { Origin: base, Authorization: `Bearer ${session.token}` },
+          });
+          assert.equal(restored.status, 200, 'The existing session must survive Backend recreation.');
+          const restoredUser = (await json(restored)).user;
+          assert.equal(restoredUser?.id, session.user.id);
+          assert.equal(restoredUser?.avatarUrl, avatarPath);
+          assert.equal((await login(base)).user.id, session.user.id);
+          console.log('Allowed/foreign Origin fences, >1 MiB authenticated avatar proxy, synthetic special-character PostgreSQL password, session and avatar/artifact persistence passed.');
+          NODE
 
       - name: Show service status
         if: always()

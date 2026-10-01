@@ -44,10 +44,7 @@ const bundle = async (entry, fileName) => {
 const sha256 = (source) =>
   `sha256-${createHash('sha256').update(source).digest('base64')}`;
 
-const runtimeSource = await bundle(
-  'src/runtimeBroker.ts',
-  'runtime-broker.js'
-);
+const runtimeSource = await bundle('src/runtimeBroker.ts', 'runtime-broker.js');
 const uiSource = await bundle('src/uiConformance.ts', 'ui-conformance.js');
 const runtimeHash = sha256(runtimeSource);
 const uiHash = sha256(uiSource);
