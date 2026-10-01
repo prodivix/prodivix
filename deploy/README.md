@@ -13,7 +13,18 @@
 
 ## 2) 服务器上交互式部署（无需本地构建）
 
-GHCR 包当前是公开的，裸服务器只需要 Docker 和 Docker Compose v2.24 或更新版本：
+裸服务器需要 Docker 和 Docker Compose v2.24 或更新版本。GHCR 镜像的访问权限由包设置决定：
+公开镜像可以匿名拉取；私有镜像需要先使用有该包读取权限的 GitHub 账号登录。
+账号使用至少包含 `read:packages` 的 personal access token (classic) 作为密码，组织要求 SSO 时
+还需授权该 token。[GHCR 官方认证说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic)
+
+私有镜像在部署前执行以下命令，并在提示时输入 token：
+
+```bash
+docker login ghcr.io --username YOUR_GITHUB_USERNAME
+```
+
+部署脚本复用 Docker 已有的 registry 凭据；登录由操作员明确完成。随后启动部署：
 
 ```bash
 cd deploy
@@ -22,7 +33,7 @@ chmod +x ./start-app.sh
 ```
 
 脚本会交互式生成或更新 owner-only 的 `.env`，并生成或复用 Postgres 密码和
-`BACKEND_VERIFICATION_RESUME_KEY`，随后拉取公开镜像并启动服务。常用非交互参数：
+`BACKEND_VERIFICATION_RESUME_KEY`，随后拉取配置的镜像并启动服务。常用非交互参数：
 
 ```bash
 ./start-app.sh --yes --tag latest
@@ -82,7 +93,7 @@ docker compose -f docker-compose.ghcr.yml --env-file .env up -d
   - GitHub Actions repository variable `VITE_PLUGIN_SANDBOX_URL` 必须配置为公开 sandbox origin 的 `runtime-broker.html` URL；未配置时 runtime activation 保持 fail closed。
 - `apps/plugin-sandbox/Dockerfile`
   - 构建时生成带脚本哈希的 CSP、Permissions Policy、Cloudflare `_headers` 和 production `nginx.conf`。
-  - `deploy-smoke.yml` 在 `main` push 上先从当前源码构建三个本地镜像，再用 `--skip-pull` 启动 Compose，避免与 GHCR 发布工作流竞态；手动触发时仍可验证指定的已发布 image tag。
+  - `deploy-smoke.yml` 在 `main` push 上先从当前源码构建三个本地镜像，再用 `--skip-pull` 启动 Compose，避免与 GHCR 发布工作流竞态；手动触发时验证指定的已发布 image tag，并用该 job 的 `packages: read` 与短期 `GITHUB_TOKEN` 登录 GHCR，job 结束后退出登录。私有包仍需向 workflow 所属 repository 授予读取权限；CI 登录不改变包可见性或生产服务器的登录状态。
   - 部署 smoke 会访问真实 Nginx 响应，验证 CSP 哈希、跨域脚本头、无 Cookie 和未知路径 404。
 - `apps/backend/Dockerfile`
   - 构建入口改为 `./cmd/server`，输出可运行的后端二进制。

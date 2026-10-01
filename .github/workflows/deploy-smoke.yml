@@ -30,6 +30,9 @@ jobs:
   deploy-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
     env:
       SMOKE_DATABASE_PASSWORD: 'Deployment smoke space ''single'' "double" $literal \backslash / @ % +'
 
@@ -67,6 +70,15 @@ jobs:
         run: |
           chmod +x ./start-app.sh
           ./start-app.sh --yes --skip-pull --tag "$IMAGE_TAG"
+
+      - name: Login to GHCR for published-image deployment
+        if: github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          logout: true
 
       - name: Run published-image deployment
         if: github.event_name == 'workflow_dispatch'

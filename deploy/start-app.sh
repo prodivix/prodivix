@@ -30,7 +30,8 @@ usage() {
   cat <<'EOF'
 Usage: ./start-app.sh [options]
 
-Interactive bare-server deployment for public GHCR images.
+Interactive bare-server deployment for GHCR images.
+Public images allow anonymous pulls. Private images require prior docker login.
 
 Options:
   --tag <tag>       Image tag to deploy. Defaults to latest.
@@ -235,7 +236,8 @@ load_env_value() {
 }
 
 echo "Prodivix bare-server deploy"
-echo "Using public GHCR images; registry authentication is not required."
+echo "Public GHCR images allow anonymous pulls."
+echo "For private images, sign in with docker login ghcr.io before running this script."
 echo
 
 if ! command_exists docker; then
@@ -345,7 +347,7 @@ if [[ "$SKIP_DOWN" != "true" ]]; then
 fi
 
 if [[ "$SKIP_PULL" != "true" ]]; then
-  echo "Pulling public GHCR images..."
+  echo "Pulling configured GHCR images..."
   compose pull
 fi
 

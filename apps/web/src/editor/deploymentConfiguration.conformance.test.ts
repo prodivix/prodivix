@@ -7,8 +7,48 @@ const read = (path: string) =>
 const compose = read('deploy/docker-compose.ghcr.yml');
 const nginx = read('apps/web/docker/nginx.conf');
 const dockerfile = read('apps/backend/Dockerfile');
+const deploymentWorkflow = read('.github/workflows/deploy-smoke.yml');
 
 describe('production deployment persistence and account recovery', () => {
+  it('gives the deployment smoke job only repository and package read permissions', () => {
+    const permissions = /^ {4}permissions:\r?\n((?: {6}[^\r\n]+\r?\n)+)/m.exec(
+      deploymentWorkflow
+    )?.[1];
+    expect(
+      permissions
+        ?.trim()
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+    ).toEqual(['contents: read', 'packages: read']);
+  });
+
+  it('authenticates only published-image deployment without projecting the job token into deployment', () => {
+    const login =
+      / {6}- name: Login to GHCR for published-image deployment\r?\n([\s\S]*?)(?= {6}- name:)/.exec(
+        deploymentWorkflow
+      )?.[1];
+    expect(login).toContain("if: github.event_name == 'workflow_dispatch'");
+    expect(login).toContain(
+      'uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9'
+    );
+    expect(login).toContain('registry: ghcr.io');
+    expect(login).toContain('username: ${{ github.actor }}');
+    expect(login).toContain('password: ${{ secrets.GITHUB_TOKEN }}');
+    expect(login).toContain('logout: true');
+    expect(login).not.toContain('env:');
+    expect(login).not.toContain('run:');
+    expect(deploymentWorkflow.match(/secrets\.GITHUB_TOKEN/g)).toHaveLength(1);
+    expect(
+      deploymentWorkflow.indexOf(
+        '- name: Login to GHCR for published-image deployment'
+      )
+    ).toBeLessThan(
+      deploymentWorkflow.indexOf('- name: Run published-image deployment')
+    );
+    expect(read('deploy/start-app.sh')).not.toContain('GITHUB_TOKEN');
+    expect(compose).not.toContain('GITHUB_TOKEN');
+  });
+
   it('persists verification bytes at the explicitly configured backend root', () => {
     expect(compose).toContain(
       'BACKEND_VERIFICATION_ARTIFACT_ROOT: /app/data/verification'

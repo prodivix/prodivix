@@ -103,7 +103,12 @@ describe('deployment credential and origin configuration', () => {
         mkdirSync(bin);
         for (const name of ['docker', 'curl', 'sleep']) {
           const path = resolve(bin, name);
-          writeFileSync(path, '#!/usr/bin/env bash\nexit 0\n');
+          writeFileSync(
+            path,
+            name === 'docker'
+              ? '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$(dirname "$0")/../docker-calls"\nexit 0\n'
+              : '#!/usr/bin/env bash\nexit 0\n'
+          );
           chmodSync(path, 0o755);
         }
         const password = 'synthetic $dollar "double" \'single\' \\backslash/@%';
@@ -155,6 +160,9 @@ describe('deployment credential and origin configuration', () => {
           expect(env.split('\n')).toContain(
             `BACKEND_ALLOWED_ORIGINS=${origins || 'http://localhost:4327,http://127.0.0.1:4327'}`
           );
+          expect(
+            readFileSync(resolve(directory, 'docker-calls'), 'utf8')
+          ).not.toMatch(/^login\b/m);
         }
       } finally {
         rmSync(directory, { recursive: true, force: true });

@@ -13,14 +13,15 @@
 
 ## 当前判断
 
-状态：`V0–V9 Implemented / Historical Exact-commit Deterministic CI Passed / Current Worktree Local verify:g4 Passed；Current Repair Remote CI, Real-model Evaluation and Satisfied Closure Evidence Pending`。
+状态：`V0–V9 Implemented / Historical Exact-commit Deterministic CI Passed / Audit-repair Local verify:g4 Passed / Audit Repairs Committed；Successive Exact-commit CI Evidence Recorded Separately；Real-model Evaluation and Satisfied Closure Evidence Pending`。
 
 2026-10-01，普通 Task 的独立生产 consumer、真实 G3 driver service、失败 Closure、derived repair admission
 与 rollback 后验证组合已实现。Web/CLI 使用同一公开 repair admission codec；父 Run 的已用 usage、cost、
 ACK、artifact、repair round 和整个 Run wall time 均从子 Task 上限扣除，不能通过重新提交或更换 Task ID
 重置预算。原审批不能授权 repair proposal；每轮仍需新的 exact human approval。当前补齐工作的状态为
 `Implemented within declared supported scope / Local package and full verify:g4 Gates Passed`；对应本地证据记录在
-[`g4-closure-evidence.md`](g4-closure-evidence.md)。本批修改尚未产生 exact-commit 远端 CI，真实 Provider
+[`g4-closure-evidence.md`](g4-closure-evidence.md)。本批修复已提交并推送 main；本地冻结工作树与每批 exact-commit
+远端 CI 的结果分别记录，不把较早成功或被新推送取消的任务视为最新源码通过。真实 Provider
 release qualification 与 satisfied Global G4 Closure 仍为 external evidence pending。
 
 ordinary driver 当前只执行 required cell 的单次 fresh attempt，要求 `maximumAttempts=1`、

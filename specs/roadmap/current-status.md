@@ -11,7 +11,7 @@
 | G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
 | G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
 | G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
-| G4 Verified Agentic Development    | In Progress  | V0–V9 已实现，历史 exact-commit deterministic CI 与本轮未提交工作树的完整本地 G4 aggregate 通过；本批远端 CI、真实 Provider qualification 与 Global G4 Closure 仍 Pending。         |
+| G4 Verified Agentic Development    | In Progress  | V0–V9 已实现，全量审查修复已提交 main；完整本地 G4 aggregate 与各批 exact-commit CI 证据见 G4 closure evidence；真实 Provider qualification 与 Global G4 Closure 仍 Pending。       |
 | G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 | G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
@@ -37,10 +37,10 @@ G4 contract 与阶段状态：
 消费 Task，执行 callback-bound Provider transport、typed proposal、显式 human approval、唯一
 Outbox/Atomic Commit、实际 G3 driver、失败 Closure 保留、父预算约束的 derived repair，以及 exact reverse
 Transaction 后的重新验证。Web 与 CLI 共用公开 repair admission owner，repair 每轮仍要求新 proposal 和
-新审批；取消、ACK 丢失、worker restart、lease 与资源清理继续 fail closed。本批修改已通过当前未提交工作树的
-完整本地 `verify:g4` aggregate，完成时间、环境与日志见 G4 closure evidence；同一连续 pipeline 的
+新审批；取消、ACK 丢失、worker restart、lease 与资源清理继续 fail closed。全量审查修复在提交前的冻结工作树通过
+完整本地 `verify:g4` aggregate，随后已提交并推送 main。完成时间、环境、源码绑定及后续 CI 修复见 G4 closure evidence；同一连续 pipeline 的
 format、lint、G4 PostgreSQL/rootless contract、G3 adapter matrix 与 G2 binary Asset aggregate 均 exit 0。
-历史 exact-commit CI 不代表本批修改已经取得远端证据。实际 Provider qualification、protected holdout、human review、usage/cost 与 satisfied
+每次源码修改后的远端 CI 按 exact commit 分开记录；较早提交的成功、失败、取消和本地结果不替代较新提交的完整验证。实际 Provider qualification、protected holdout、human review、usage/cost 与 satisfied
 Global G4 Closure 仍为 `External Evidence Pending`，Global G4 保持 `In Progress`。
 
 ordinary consumer 的当前支持范围为每个 required cell 一次 physical attempt（`maximumAttempts=1`、

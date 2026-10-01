@@ -2,7 +2,7 @@
 
 ## 状态
 
-- EvidenceStatus：V0–V9 Historical Exact-commit Deterministic CI Passed；Current Working-tree Local verify:g4 Passed；Current Repair Remote CI, Real-model Evaluation and Satisfied Closure Evidence Pending
+- EvidenceStatus：V0–V9 Historical Exact-commit Deterministic CI Passed；Audit-repair Local verify:g4 Passed；Audit Repairs Committed and Successive Exact-commit CI Evidence Recorded Separately；Real-model Evaluation and Satisfied Closure Evidence Pending
 - ProductGateStatus：In Progress
 - 日期：2026-10-01
 - Canonical milestone：
@@ -606,8 +606,10 @@ Workspace Sync 12 files / 119 Passed，三个 package 的 typecheck 与 lint Pas
 
 ## 2026-10-01 audit repair frozen-worktree aggregate
 
-状态为 **Implemented within declared supported scope / Current Working-tree Local Aggregate Passed**。
-Baseline 为 `f3f85bc46051d5022a144cfc0084c731307855ed`，验证的是未提交工作树，没有 commit/push。
+状态为 **Implemented within declared supported scope / Frozen-worktree Local Aggregate Passed**。
+Baseline 为 `f3f85bc46051d5022a144cfc0084c731307855ed`；本节验证发生时为未提交的冻结工作树。
+该审查修复随后提交并推送为 `927161deded7a9b83094d0727287eedde1f215a0`；后续部署、依赖与 CI
+修复另有提交，不把本节本地结果追溯为这些较新提交的完整 exact-commit aggregate。
 实际环境为 Windows/amd64、Node 26.3.0、pnpm 11.9.0、Go 1.26.4 与隔离 PostgreSQL 18.4。
 
 连续 pipeline 于 `2026-10-01T09:06:08.2791071Z` 启动，依次运行完整 `pnpm run format`、
@@ -645,10 +647,11 @@ Plan 当前 blocked，rollback 则另经公开 restored-target/required-cell ret
 coordination、Browser/fixture composition 与 compatible Plan owner proof 接线是尚未实现的代码能力扩展，
 不能归为仅缺外部 qualification。
 
-本轮 remote-model units 为 0。当前工作树 exact-commit remote CI、实际 Docker deploy、ordinary
+本节 pipeline 的 remote-model units 为 0。验证完成当时，冻结工作树的 exact-commit remote CI、实际 Docker deploy、ordinary
 Node 22/Linux/rootless/AppContainer/TLS/signer/Backend/Browser 的整套生产部署资格、VS Code GUI，
 三个真实 Provider 的 release qualification、protected holdout、human review、actual usage/cost 与 satisfied
-Global G4 Closure 仍为 **External Evidence Pending**。Global G4 保持 **In Progress**。
+Global G4 Closure 尚无证据。后续 exact-commit CI 与 Docker 结果见下节；这些结果仍不证明真实 Provider
+qualification、全部 ordinary 生产部署资格或 satisfied Global G4 Closure。Global G4 保持 **In Progress**。
 
 最后交付检查发现 `deploy/start-app.sh`、`apps/web/docker/nginx.conf` 与 `deploy/.env.example`
 的物理工作树字节含 CRLF/LF 混合换行，而 canonical Git blob 与 `.gitattributes` 要求 LF。
@@ -656,3 +659,75 @@ Global G4 Closure 仍为 **External Evidence Pending**。Global G4 保持 **In P
 deployment configuration conformance 1 file / 9 tests Passed。此修正发生在上述 aggregate 之后，
 没有改变 Git 归一后的部署内容；独立日志为 `repair-final-deploy-lf.log`。交付前再执行完整 format 与
 `git diff --check`，其结果独立记录在修复总清单，不把 shell syntax check 当作 actual Docker deploy。
+
+## 2026-10-01 committed audit repair and CI repair evidence
+
+审查修复、部署补充及第一批 CI 修复已依次提交并推送 main：`927161de`、`16d1d92e`、
+`d23fa309`、`78783c57`、`e532e0b9`。它们没有借助 force push、关闭安全审计、放宽 required cells
+或取消测试断言取得成功。远端 fresh-build 检查发现的问题和本地复验如下：
+
+- `verify:g4:wire` 的 build closure 扩展到公开 Golden runtime 的生产依赖 owner。隔离的零 dist
+  工作树先复现旧 closure 的 missing module，再由实际 Turbo graph 构建 30 个 owner，0 cache；
+  wire 和 closure regression 均通过，模块解析证明确实来自隔离工作树。
+- 精确登记 GitHub runner images `20260920.314.1` 与 `20260927.320.1`，kernel 均为
+  `6.17.0-1022-azure`。继续校验 image、kernel、Podman、crun、conmon 及路径，不接受未知 patch。
+  V4/V8 的固定 Plan 期望随此前 canonical SHA-256 身份修复重新计算；required cells、依赖及预算保持不变。
+- root 与 controlled React/Vue toolchain 的 `fast-uri` 升级到 `3.1.8`，锁文件由 pnpm 生成。
+  实际 Ajv resolver 120 个断言及实际 controlled toolchain acquisition/build/test/cleanup 通过。
+  exact `e532e0b9` 的远端 Dependency Audit 通过 high threshold；仍有 4 low、14 moderate，不能表述为零漏洞。
+
+exact `e532e0b9bd6f83c066928a7d6127816fc6e63f4e` 的
+[G4 Agent Boundaries](https://github.com/prodivix/prodivix/actions/runs/36863024035)、
+[G0/G1](https://github.com/prodivix/prodivix/actions/runs/36863024424)、
+[Security](https://github.com/prodivix/prodivix/actions/runs/36863024320)、
+[Docker Images](https://github.com/prodivix/prodivix/actions/runs/36863024172) 与
+[current-source Deploy Smoke](https://github.com/prodivix/prodivix/actions/runs/36863024299) 均 terminal success。
+其中实际部署验证复杂数据库密码、Browser origin fence、超过 1 MiB 的 authenticated avatar proxy、
+backend recreation 后 session/avatar/artifact bytes 持久化。该提交的 Rootless/V9 安装代理和 Frontend
+资源争用实际失败，G3/V8 剩余任务被后续推送取消；因此没有将整个提交记为全绿。
+
+第二批修复为 `020a6068` 与 `3b60e664`：
+
+- pinned Node 22.23.3/Corepack 0.36.0 的安装 fetch 需要 `NODE_USE_ENV_PROXY=1` 才使用已批准的
+  install proxy。生产环境 owner 显式分离安装与执行：安装可使用 proxy，执行关闭网络及 proxy，
+  保留 shared Corepack cache，拒绝调用方覆盖保留控制变量。真实 pinned Node probe 验证 proxy 关闭时
+  acquisition 失败、开启后安装成功、retire dependency caches/proxy 后 cached manager 可离线执行，
+  cold offline manager fail closed。没有删除或削弱原网络、cleanup、Terminal、Secret boundary。
+- Frontend remaining workspaces 使用 Turbo `--concurrency=2`，Agent Runtime 使用一个 Vitest worker、
+  保留 isolation 与默认 5 秒 timeout。Node 22 本地 Worker 16 files / 101 tests、Runtime 10 files /
+  85 tests，以及准确的 remaining-workspaces 命令 85/85 tasks 通过；随后 root lint、完整 format 与
+  `git diff --check` 通过。本地资源调度结果与实际 GitHub Frontend 终态分别记录。
+
+exact `3b60e664a0ea1a84e1286184f5e56f45825292f2` 的
+[G2 Rootless Sandbox](https://github.com/prodivix/prodivix/actions/runs/36866205062) 已 terminal success。
+actual artifact `11164547892` 的 workflow head 精确匹配该提交：Podman 4.9.3、rootless、cgroup v2/systemd、
+crun 1.14.1；React 和 authenticated Vue Catalog 的 Preview/Build/Test 均为 `none-verified` runtime
+network，PNG 内容摘要一致，cancel/timeout cleanup 通过。这是安装代理修复后的实际 Linux 证据。
+同一 exact commit 的 [Tests](https://github.com/prodivix/prodivix/actions/runs/36866204913) 已 terminal
+success，Frontend、Web、AI、Backend、hostile-locale 五个 jobs 全部通过；
+[G0/G1](https://github.com/prodivix/prodivix/actions/runs/36866204813) 的三个 jobs 也全部通过。
+
+同一提交的 [Docker Images](https://github.com/prodivix/prodivix/actions/runs/36866544793) 已将三镜像发布为
+`sha-3b60e66`，源码 revision label 均匹配该 exact commit。指定此标签的
+[published-image Deploy Smoke](https://github.com/prodivix/prodivix/actions/runs/36867517033) 实际在 GHCR pull
+时返回 `unauthorized`，尚未运行健康/持久化检查；不能用前述 current-source 部署成功替代这个失败。
+后续修复在 workflow 内增加只读 package 权限和 callback-bound registry login，包可见性保持不变。
+本地两个 deployment conformance 文件 28/28 tests、scoped lint、Bash syntax 和 YAML parse 通过；
+这不替代修复后 published-image 部署的远端终态。
+同一提交的 [G3](https://github.com/prodivix/prodivix/actions/runs/36866204806) 有八个 jobs 成功，V6
+controlled static toolchain 在 `version` 阶段 fail closed，V8 因依赖失败被跳过；没有将 skipped 计为成功。
+原因是共享 sandbox entry 新增的 `packageManagerEnvironment.mjs` 只进入普通 sandbox image，
+controlled-static image 漏掉 companion COPY。镜像 build 的工具版本/seed 检查没有启动该共享 entry，
+因此无法提前发现 import closure 缺失。后续补齐该 COPY，并增加按两份实际 Dockerfile 的文件边界物化
+隔离目录、运行真实入口的 integration regression：修前复现 controlled image 的 `ERR_MODULE_NOT_FOUND`，
+修后入口协议和缺模块 negative 均通过。两个相关文件 9/9 tests、类型检查和 scoped lint 通过。
+同一共享入口还会给 wrapper 加入七个 package-manager/Node 控制变量；controlled inner command 只接受
+`HOME`/`PATH`，因此后续在既有 wrapper sanitizer 中精确移除这七个 owner-created 名字，保留其余变量
+的严格拒绝。实际 helper 两阶段 environment → actual worker sanitizer → runtime strict checker →
+真实 Node version 子进程的回归先复现失败，再通过；未知 Corepack 控制和 Secret canary 仍被拒绝。
+最终 Worker 在与 controlled image 相同的 Node 22.23.1 下 18 files / 107 tests 全部通过。
+
+每批完整远端结论要求同一 exact commit 的 25 个常规 workflows 和 48 个展开 jobs 全部 terminal success。
+路径过滤未触发的常规 workflow 通过显式 dispatch 补齐；published-image 部署必须等待该提交三镜像发布，
+使用 exact 标签。release/tag、managed KMS、真实 Provider/human review/hosted recovery 等独立资格
+workflow 保持其触发前置条件。这些 deterministic CI 与部署证据均不使 Global G4 自动 Passed。

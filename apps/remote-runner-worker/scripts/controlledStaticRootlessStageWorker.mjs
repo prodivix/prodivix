@@ -683,7 +683,7 @@ export const createControlledStaticRootlessBuildLog = (command) => {
   return Buffer.concat([commandLine, command.stdout, command.stderr]);
 };
 
-const sanitizeExecutionEnvironment = () => {
+export const sanitizeControlledStaticRootlessExecutionEnvironment = () => {
   for (const key of [
     'npm_config_cache',
     'npm_config_store_dir',
@@ -692,6 +692,13 @@ const sanitizeExecutionEnvironment = () => {
     'HTTP_PROXY',
     'HTTPS_PROXY',
     'NO_PROXY',
+    'COREPACK_HOME',
+    'COREPACK_ENABLE_NETWORK',
+    'COREPACK_DEFAULT_TO_LATEST',
+    'COREPACK_ENABLE_AUTO_PIN',
+    'COREPACK_ENABLE_DOWNLOAD_PROMPT',
+    'COREPACK_ENV_FILE',
+    'NODE_USE_ENV_PROXY',
   ]) {
     delete process.env[key];
   }
@@ -712,7 +719,7 @@ const run = async () => {
   const inputFileSet = await scanInputFileSet();
   failurePhase = 'fresh-baseline';
   const freshBaseline = await assertFreshBaseline(plan);
-  sanitizeExecutionEnvironment();
+  sanitizeControlledStaticRootlessExecutionEnvironment();
   failurePhase = 'environment';
   const environment = controlledExecutionEnvironment();
   let packageSeed = null;
