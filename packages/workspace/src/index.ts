@@ -219,6 +219,7 @@ export {
   createWorkspaceSemanticIndexFromSnapshot,
 } from './authoring/createWorkspaceSemanticIndexFromSnapshot';
 export { createWorkspaceVerificationImpactSet } from './verification/workspaceVerificationImpact';
+export { workspaceVerificationPartitionRevisions } from './verification/workspaceVerificationImpactSemantic';
 export { createWorkspaceVerificationPolicyMutationCommand } from './verification/workspaceVerificationPolicyAuthoring';
 export {
   WORKSPACE_BEHAVIOR_SEMANTIC_PROVIDER_DESCRIPTOR,

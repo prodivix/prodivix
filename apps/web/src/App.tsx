@@ -149,6 +149,12 @@ export const createRoutes = (instance: i18n) => {
     () => import('./editor/features/export/ExportCode'),
     (module) => module.ExportCode
   );
+  const ProjectDeploymentPage = lazyRoute(
+    instance,
+    ['editor'],
+    () => import('./editor/features/deployment/ProjectDeploymentPage'),
+    (module) => module.default
+  );
 
   return [
     {
@@ -222,13 +228,7 @@ export const createRoutes = (instance: i18n) => {
             },
             {
               path: 'deployment',
-              element: (
-                <div>
-                  {t('deploymentSettings', 'deploymentSettings', {
-                    ns: 'routes',
-                  })}
-                </div>
-              ),
+              element: withRouteSuspense(<ProjectDeploymentPage />),
             },
             {
               path: 'settings',

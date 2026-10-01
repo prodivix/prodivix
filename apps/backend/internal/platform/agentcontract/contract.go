@@ -64,6 +64,10 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentEvaluationBytes)
 	} else if identity == "agent-g4-closure-manifest@1" {
 		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentG4ClosureBytes)
+	} else if identity == "agent-task-output@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, 524288)
+	} else if identity == "agent-repair-task-request@1" {
+		rawError = canonicaljson.ValidateRawEnvelope(payload, maximumAgentControlBytes)
 	} else {
 		rawError = canonicaljson.ValidateRaw(payload, maximumAgentPolicyBytes)
 	}
@@ -111,6 +115,14 @@ func validateWithSchema(identity string, payload json.RawMessage) (map[string]an
 		}
 	} else if identity == "agent-g4-closure-manifest@1" {
 		if err := validateAgentG4ClosureSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-task-output@1" {
+		if err := validateAgentTaskOutputSemantics(decoded); err != nil {
+			return nil, err
+		}
+	} else if identity == "agent-repair-task-request@1" {
+		if err := validateAgentRepairTaskRequest(decoded); err != nil {
 			return nil, err
 		}
 	} else if err := validateAgentPolicySemantics(decoded); err != nil {

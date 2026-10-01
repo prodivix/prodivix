@@ -31,7 +31,7 @@ gatedDescribe('Golden G3 V6 controlled 66-cell / 80-attempt matrix', () => {
         controlledDimensionCount: 17,
         suiteCount: 8,
         actualPassedCaseCount: 28,
-        ownerPassedCaseCount: 127,
+        ownerPassedCaseCount: 128,
         failedCaseCount: 0,
         skippedCaseCount: 0,
         todoCaseCount: 0,

@@ -68,6 +68,7 @@ export type RunControlledStaticToolchainProductionInput = Readonly<{
   snapshot: ExecutableProjectSnapshot;
   timeoutMs?: number;
   signal?: AbortSignal;
+  resourceScope?: string;
 }>;
 
 export const resolveControlledStaticToolchainExecutionTimeoutMs = (
@@ -675,7 +676,9 @@ export const decodeControlledStaticToolchainProductionResult = (
   });
 };
 
-const minimalProductionEnvironment = (): NodeJS.ProcessEnv => {
+const minimalProductionEnvironment = (
+  resourceScope?: string
+): NodeJS.ProcessEnv => {
   const environment: NodeJS.ProcessEnv = { CI: '1' };
   for (const key of [
     'PATH',
@@ -699,6 +702,8 @@ const minimalProductionEnvironment = (): NodeJS.ProcessEnv => {
     const value = process.env[key];
     if (value) environment[key] = value;
   }
+  if (resourceScope)
+    environment.PRODIVIX_CONTROLLED_STATIC_RESOURCE_SCOPE = resourceScope;
   return environment;
 };
 
@@ -867,6 +872,11 @@ export const runControlledStaticToolchainProduction = async (
       'Controlled static toolchain repository root must be absolute.'
     );
   }
+  if (
+    input.resourceScope !== undefined &&
+    !/^[a-f0-9]{64}$/u.test(input.resourceScope)
+  )
+    throw new TypeError('Controlled static resource scope is invalid.');
   const timeoutMs = resolveControlledStaticToolchainExecutionTimeoutMs(
     input.timeoutMs
   );
@@ -904,7 +914,7 @@ export const runControlledStaticToolchainProduction = async (
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(process.execPath, [tsxCli, runnerPath], {
       cwd: repositoryRoot,
-      env: minimalProductionEnvironment(),
+      env: minimalProductionEnvironment(input.resourceScope),
       detached: process.platform !== 'win32',
       shell: false,
       windowsHide: true,

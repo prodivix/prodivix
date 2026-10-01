@@ -191,6 +191,9 @@ const expectedProviderArgs = (
     );
   }
   const executionId = `g3-v6-${input.snapshotDigest.slice(7, 23)}-${input.stage}-${input.ordinal}`;
+  const scope = process.env.PRODIVIX_CONTROLLED_STATIC_RESOURCE_SCOPE;
+  if (scope !== undefined && !/^[a-f0-9]{64}$/u.test(scope))
+    throw new TypeError('Controlled static resource scope is invalid.');
   return Object.freeze([
     'run',
     '--rm',
@@ -218,6 +221,7 @@ const expectedProviderArgs = (
     '--tmpfs=/workspace:rw,nosuid,nodev,size=1024m,mode=0777',
     '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=1024m,mode=1777',
     '--workdir=/workspace',
+    ...(scope ? [`--label=prodivix.controlled-static-scope=${scope}`] : []),
     input.imageDigest,
   ]);
 };

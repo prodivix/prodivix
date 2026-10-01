@@ -29,7 +29,6 @@ import {
   createAgentProviderAdapterIdentity,
   createAgentProductionReleaseEvaluationPlan,
   digestAgentCanonicalValue,
-  G4_V8_MINIMUM_EVALUATION_CORPUS,
   getG4V8PublicEvaluationCaseMaterials,
   hasExactAgentControlKeys,
   inspectAgentControlJson,
@@ -58,6 +57,7 @@ import {
   type AgentUsageUnit,
   type CanonicalDigest,
 } from '@prodivix/ai';
+import { AGENT_EVALUATION_OWNER_CORPUS as G4_V8_MINIMUM_EVALUATION_CORPUS } from './evaluationCorpusComposition';
 import {
   compareUnicodeCodePoints,
   sameCanonicalJson,

@@ -191,6 +191,47 @@ const createWorkspace = (): WorkspaceSnapshot => {
 };
 
 describe('workspace code language environment', () => {
+  it('rebuilds immutable semantic and shader inputs for a local edit before durable revisions advance', () => {
+    const before = createWorkspace();
+    const environment = createWorkspaceCodeLanguageEnvironment(before);
+    const code = before.docsById['code-submit']!;
+    const after = {
+      ...before,
+      docsById: {
+        ...before.docsById,
+        'code-submit': {
+          ...code,
+          content: {
+            language: 'ts' as const,
+            source: 'export function changed(): number { return 1; }',
+          },
+        },
+      },
+    };
+    const changed = createWorkspaceCodeLanguageEnvironment(after);
+    expect(changed).not.toBe(environment);
+    expect(
+      changed.artifacts.find(({ id }) => id === 'code-submit')?.source
+    ).toContain('changed');
+    expect(changed.snapshotIdentity.workspaceRevisions).toEqual(
+      environment.snapshotIdentity.workspaceRevisions
+    );
+    expect(changed.snapshotIdentity.providerSetDigest).not.toBe(
+      environment.snapshotIdentity.providerSetDigest
+    );
+    expect(
+      changed.semanticIndex?.getSymbol(
+        createCodeSymbolId(
+          before.id,
+          'code-submit',
+          createCodeExportLocalSymbolId('changed')
+        )
+      )
+    ).toMatchObject({ name: 'changed' });
+    expect(createWorkspaceCodeLanguageEnvironment(structuredClone(after))).toBe(
+      changed
+    );
+  });
   it('resolves PIR and Route export names to the durable TypeScript symbol', () => {
     const workspace = createWorkspace();
     const environment = createWorkspaceCodeLanguageEnvironment(workspace);

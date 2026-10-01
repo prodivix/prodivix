@@ -1,7 +1,7 @@
 {
   "name": "@prodivix/eslint",
   "version": "0.0.1",
-  "description": "ESLint plugin for PIR static analysis",
+  "description": "ESLint diagnostics for Prodivix JavaScript and TypeScript code authoring modules",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
@@ -11,8 +11,12 @@
     "lint": "eslint .",
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "echo \"No tests for eslint-plugin-prodivix\" && exit 0",
+    "test": "pnpm run build && vitest run",
     "test:run": "vitest run"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.4",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "@types/eslint": "^9.6.1",

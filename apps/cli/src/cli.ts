@@ -4,6 +4,7 @@ import { createBuildCommand } from './commands/build.js';
 import { createExportCommand } from './commands/export.js';
 import { createVerificationCommand } from './commands/verification.js';
 import { createAgentCommand } from './commands/agent.js';
+import { createDeployCommand } from './commands/deploy.js';
 
 export async function cli(argv: string[]): Promise<void> {
   await new Command()
@@ -12,6 +13,7 @@ export async function cli(argv: string[]): Promise<void> {
     .version('0.0.1')
     .addCommand(createBuildCommand())
     .addCommand(createExportCommand())
+    .addCommand(createDeployCommand())
     .addCommand(createAgentCommand())
     .addCommand(createVerificationCommand())
     .parseAsync(argv);

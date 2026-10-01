@@ -30,6 +30,66 @@ const consumerArtifact: CodeArtifact = {
 const canonicalArtifacts = [definitionArtifact, consumerArtifact] as const;
 
 describe('TypeScript semantic contribution properties', () => {
+  it('publishes destructured, namespace and transitive star exports under each module identity', () => {
+    const artifact = (id: string, source: string): CodeArtifact => ({
+      ...definitionArtifact,
+      id,
+      path: `/src/${id}.ts`,
+      owner: { kind: 'workspace-module', documentId: id },
+      source,
+    });
+    const artifacts = [
+      artifact(
+        'definition',
+        'export const { value, nested: { label } } = { value: 1, nested: { label: "ready" } }; export const [first, ...rest] = [1, 2]; export default 3;'
+      ),
+      artifact(
+        'barrel',
+        'export * from "./definition"; export * as values from "./definition";'
+      ),
+      artifact('outer', 'export * from "./barrel";'),
+    ];
+    const contribution = createTypeScriptSemanticContribution({
+      workspaceId,
+      artifacts,
+    });
+    for (const module of ['definition', 'barrel', 'outer']) {
+      for (const name of ['value', 'label', 'first', 'rest'])
+        expect(contribution.symbols).toContainEqual(
+          expect.objectContaining({
+            id: createCodeSymbolId(
+              workspaceId,
+              module,
+              createCodeExportLocalSymbolId(name)
+            ),
+            name,
+            stability: 'durable',
+          })
+        );
+    }
+    expect(contribution.symbols).toContainEqual(
+      expect.objectContaining({
+        id: createCodeSymbolId(
+          workspaceId,
+          'barrel',
+          createCodeExportLocalSymbolId('values')
+        ),
+        name: 'values',
+      })
+    );
+    expect(
+      contribution.symbols?.some(
+        ({ id }) =>
+          id ===
+          createCodeSymbolId(
+            workspaceId,
+            'barrel',
+            createCodeExportLocalSymbolId('default')
+          )
+      )
+    ).toBe(false);
+    expect(contribution.diagnostics).toEqual([]);
+  });
   it('is invariant to CodeArtifact input order', () => {
     const contributions = [
       canonicalArtifacts,

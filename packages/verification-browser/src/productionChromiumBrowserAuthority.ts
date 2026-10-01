@@ -489,6 +489,9 @@ export const createProductionChromiumBrowserAuthority = async (
     runtimeControls,
     securityObservationAuthority,
     chromiumExecutablePath: observedRuntimeAuthority.executablePath,
+    ...(options.baselineAssets
+      ? { baselineAssets: options.baselineAssets }
+      : {}),
   });
 
   const authority: ProductionChromiumBrowserAuthority = Object.freeze({
@@ -558,6 +561,10 @@ export const createProductionChromiumBrowserAuthority = async (
         snapshot: validated.snapshot,
         buildBundle: input.buildBundle,
         program: input.program,
+        ...(input.controlProfile
+          ? { controlProfile: input.controlProfile }
+          : {}),
+        ...(input.fixtureSets ? { fixtureSets: input.fixtureSets } : {}),
         ...(security.bytes ? { securityObservationBytes: security.bytes } : {}),
         signal,
       });

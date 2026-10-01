@@ -32,6 +32,7 @@ export type GoldenG3V6ControlledDimensionSuite = Readonly<{
   id: string;
   packageName: string;
   files: readonly string[];
+  expectedOwnerPassedCaseCount: number;
   cases: readonly GoldenG3V6ControlledDimensionCase[];
 }>;
 
@@ -45,6 +46,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'data-owner-runtime',
     packageName: '@prodivix/data',
+    expectedOwnerPassedCaseCount: 20,
     files: Object.freeze([
       'src/dataRuntime.test.ts',
       'src/dataOptimisticRuntime.test.ts',
@@ -84,6 +86,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'data-golden-controlled-journeys',
     packageName: '@prodivix/golden-conformance',
+    expectedOwnerPassedCaseCount: 9,
     files: Object.freeze([
       'src/goldenG3BehaviorComposition.conformance.test.ts',
       'src/goldenG3V6ControlledDimensions.conformance.test.ts',
@@ -104,6 +107,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'data-generated-production-runtime',
     packageName: '@prodivix/prodivix-compiler',
+    expectedOwnerPassedCaseCount: 12,
     files: Object.freeze(['src/workspace/standaloneDataRuntime.test.ts']),
     cases: Object.freeze([
       testCase(
@@ -121,6 +125,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'auth-owner-principal-projection',
     packageName: '@prodivix/server-runtime',
+    expectedOwnerPassedCaseCount: 7,
     files: Object.freeze(['src/__tests__/isolatedServerRuntime.test.ts']),
     cases: Object.freeze([
       testCase(
@@ -136,6 +141,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'auth-golden-target-matrix',
     packageName: '@prodivix/golden-conformance',
+    expectedOwnerPassedCaseCount: 14,
     files: Object.freeze(['src/goldenG2AuthServerMatrix.conformance.test.ts']),
     cases: Object.freeze([
       testCase(
@@ -151,6 +157,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'recovery-adapter-lifecycle',
     packageName: '@prodivix/verification',
+    expectedOwnerPassedCaseCount: 6,
     files: Object.freeze([
       'src/verificationAdapterLifecycleRaces.conformance.test.ts',
     ]),
@@ -172,6 +179,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'recovery-browser-process',
     packageName: '@prodivix/runtime-browser',
+    expectedOwnerPassedCaseCount: 7,
     files: Object.freeze(['src/browserProjectTestRunner.conformance.test.ts']),
     cases: Object.freeze([
       testCase(
@@ -192,6 +200,7 @@ export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES = Object.freeze([
   Object.freeze({
     id: 'recovery-remote-protocol',
     packageName: '@prodivix/runtime-remote',
+    expectedOwnerPassedCaseCount: 53,
     files: Object.freeze([
       'src/remoteExecutionControlPlane.conformance.test.ts',
       'src/remoteExecutionClient.conformance.test.ts',
@@ -240,6 +249,11 @@ const expectedPassedCaseCount = GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES.reduce(
   (count, suite) => count + suite.cases.length,
   0
 );
+const expectedOwnerPassedCaseCount =
+  GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES.reduce(
+    (count, suite) => count + suite.expectedOwnerPassedCaseCount,
+    0
+  );
 
 const manifestIdentity = Object.freeze({
   format: 'prodivix.golden-g3-v6-controlled-dimensions.v1',
@@ -248,7 +262,7 @@ const manifestIdentity = Object.freeze({
   controlledDimensionIds: GOLDEN_G3_V6_CONTROLLED_DIMENSION_IDS,
   suites: GOLDEN_G3_V6_CONTROLLED_DIMENSION_SUITES,
   expectedPassedCaseCount,
-  expectedOwnerPassedCaseCount: 127,
+  expectedOwnerPassedCaseCount,
 });
 
 export const GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST = Object.freeze({

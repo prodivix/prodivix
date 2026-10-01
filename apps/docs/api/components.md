@@ -10,7 +10,7 @@
 import { PdxButton } from '@prodivix/ui';
 
 export function SaveAction() {
-  return <PdxButton text="Save" category="Primary" />;
+  return <PdxButton text="Save" variant="Primary" tone="Neutral" />;
 }
 ```
 

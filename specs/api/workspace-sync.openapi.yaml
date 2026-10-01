@@ -218,8 +218,9 @@ paths:
     post:
       summary: Create one immutable Agent Task fact
       description: >
-        Admits one strict task-record wire fact for the authenticated workspace
-        principal. The task identity is strongly idempotent: an exact replay
+        Admits one strict task-record wire fact with its ordinary runtime
+        admission identity and digest for the authenticated workspace principal.
+        The task identity is strongly idempotent: an exact replay
         returns the original fact and a conflicting reuse is rejected. Creating
         a task grants no approval, mutation, or rollback authority.
       operationId: createAgentTask
@@ -231,7 +232,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentStrictFact'
+              $ref: '#/components/schemas/AgentAdmittedTaskRequest'
       responses:
         '200':
           description: Exact idempotent replay
@@ -255,6 +256,194 @@ paths:
           $ref: '#/components/responses/AgentConflict'
         '415':
           $ref: '#/components/responses/AgentUnsupportedMediaType'
+        '503':
+          description: Ordinary runtime worker unavailable
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/task-admissions:
+    post:
+      summary: Request an exact ordinary Task admission challenge
+      description: >
+        The authenticated actor submits an initial Task. The worker evaluates
+        current policy, provider qualification and grant; only the initial grant
+        reference may change. Derived repair Tasks use the dedicated server
+        factory. A challenge grants no approval or authoring permission.
+      operationId: createAgentTaskAdmission
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task]
+              properties:
+                task:
+                  $ref: '#/components/schemas/AgentStrictFact'
+              additionalProperties: false
+      responses:
+        '200':
+          description: Exact pending, admitted or blocked challenge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAdmissionChallenge'
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '409':
+          $ref: '#/components/responses/AgentConflict'
+        '503':
+          description: Ordinary runtime worker unavailable
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/task-admissions/{admissionId}:
+    get:
+      summary: Read the current actor-bound admission result
+      operationId: getAgentTaskAdmission
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - in: path
+          name: admissionId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Pending challenge, blocked diagnostics or exact admitted Task/policy/grant
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Strict AgentTaskAdmissionState validated by the public AI owner.
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+        '503':
+          description: Runtime admission service unavailable
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/tasks/{taskId}/run:
+    get:
+      summary: Discover the durable Run created for an admitted Task
+      operationId: findAgentTaskRun
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Current Run identity, or an empty string until the worker starts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runId]
+                properties:
+                  runId:
+                    type: string
+                    maxLength: 256
+                additionalProperties: false
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/task-outputs:
+    get:
+      summary: Read bounded explain or plan output from immutable Task facts
+      operationId: getAgentTaskOutputs
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - $ref: '#/components/parameters/AgentRunId'
+      responses:
+        '200':
+          description: Actor-bound no-store output facts with completed invocation and exact content digests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 32
+                    items:
+                      $ref: '#/components/schemas/AgentStrictFact'
+                additionalProperties: false
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '404':
+          $ref: '#/components/responses/AgentNotFound'
+  /api/projects/{projectId}/workspaces/{workspaceId}/agent/runs/{runId}/repair-task-requests:
+    post:
+      summary: Derive one bounded repair Task from a preserved forward failure
+      description: >
+        The server preserves the original public Plan, failed Closure, Evidence
+        and required counterexamples, deducts every used budget dimension and
+        total wall time, then atomically delegates to one new Task admission.
+        Exact request replay is read-only. A competing request conflicts.
+        The child requires a new proposal and fresh exact human approval.
+      operationId: createAgentRepairTaskRequest
+      parameters:
+        - $ref: '#/components/parameters/AgentProjectId'
+        - $ref: '#/components/parameters/AgentWorkspaceId'
+        - $ref: '#/components/parameters/AgentRunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                [requestId, expectedParentSnapshotDigest, expectedClosureDigest]
+              properties:
+                requestId:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                expectedParentSnapshotDigest:
+                  $ref: '#/components/schemas/AgentCanonicalDigest'
+                expectedClosureDigest:
+                  $ref: '#/components/schemas/AgentCanonicalDigest'
+              additionalProperties: false
+      responses:
+        '202':
+          description: Immutable derived Task request and its existing admission challenge
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AgentAdmissionChallenge'
+                  - type: object
+                    required: [request]
+                    properties:
+                      request:
+                        $ref: '#/components/schemas/AgentStrictFact'
+                unevaluatedProperties: false
+        '400':
+          $ref: '#/components/responses/AgentBadRequest'
+        '401':
+          $ref: '#/components/responses/AgentUnauthenticated'
+        '403':
+          $ref: '#/components/responses/AgentUnauthorized'
+        '409':
+          $ref: '#/components/responses/AgentConflict'
+        '503':
+          description: Ordinary runtime worker unavailable
   /api/projects/{projectId}/workspaces/{workspaceId}/agent/approvals:
     post:
       summary: Record one exact human approval or rejection
@@ -482,6 +671,35 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    AgentCanonicalDigest:
+      type: string
+      pattern: '^sha256-[0-9a-f]{64}$'
+    AgentAdmittedTaskRequest:
+      type: object
+      required: [task, admissionId, admissionDigest]
+      properties:
+        task:
+          $ref: '#/components/schemas/AgentStrictFact'
+        admissionId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        admissionDigest:
+          $ref: '#/components/schemas/AgentCanonicalDigest'
+      additionalProperties: false
+    AgentAdmissionChallenge:
+      type: object
+      required: [admissionId, challengeDigest, status]
+      properties:
+        admissionId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        challengeDigest:
+          $ref: '#/components/schemas/AgentCanonicalDigest'
+        status:
+          type: string
+          enum: [pending, admitted, blocked]
     AgentStrictFact:
       type: object
       minProperties: 1

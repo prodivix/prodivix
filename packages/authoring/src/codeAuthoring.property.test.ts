@@ -21,6 +21,27 @@ const createRequest = () =>
   });
 
 describe('CodeAuthoringRequest and CodeAuthoringSession properties', () => {
+  it.each(['constructor', 'toString', '__proto__'])(
+    'edits an opaque artifact id %s without inheriting a draft',
+    (artifactId) => {
+      let session = createCodeAuthoringSession(createRequest());
+      session = reconcileCodeAuthoringSessionArtifact(session, {
+        artifactId,
+        revision: '1',
+        source: 'canonical',
+      });
+      session = updateCodeAuthoringSessionDraft(session, 'edited');
+      expect(getActiveCodeAuthoringDraft(session)?.source).toBe('edited');
+      session = completeCodeAuthoringSessionSave(session, {
+        artifactId,
+        revision: '2',
+        source: 'edited',
+      });
+      expect(getActiveCodeAuthoringDraft(session)?.baseline.source).toBe(
+        'edited'
+      );
+    }
+  );
   it('normalizes capabilities and rejects a cross-artifact SourceSpan', () => {
     const request = createCodeAuthoringRequest({
       requestId: 'request-1',

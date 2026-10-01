@@ -10,6 +10,8 @@ import { agentControlFactWireSchemas } from '../packages/ai/src/wire/agentContro
 import { agentProposalFactWireSchemas } from '../packages/ai/src/wire/agentProposalWire.ts';
 import { agentVerificationFactWireSchemas } from '../packages/ai/src/wire/agentVerificationWire.ts';
 import { agentProductWireSchemas } from '../packages/ai/src/wire/agentProductWire.ts';
+import { agentTaskOutputWireSchemas } from '../packages/ai/src/wire/agentTaskOutputWire.ts';
+import { agentRepairTaskWireSchemas } from '../packages/ai/src/wire/agentRepairTaskWire.ts';
 import { agentEvaluationFactWireSchemas } from '../packages/ai/src/wire/agentEvaluationWire.ts';
 import { agentG4ClosureManifestWireSchemas } from '../packages/ai/src/wire/agentG4ClosureWire.ts';
 import { createG4AgentPolicyCanonicalVector } from './g4-agent-policy-canonical-vector.mjs';
@@ -17,12 +19,18 @@ import { createG4AgentControlCanonicalVector } from './g4-agent-control-canonica
 import { createG4AgentProposalCanonicalVector } from './g4-agent-proposal-canonical-vector.mjs';
 import { createG4AgentVerificationCanonicalVector } from './g4-agent-verification-canonical-vector.mjs';
 import { createG4AgentProductCanonicalVector } from './g4-agent-product-canonical-vector.mjs';
+import { createG4AgentTaskOutputCanonicalVector } from './g4-agent-task-output-canonical-vector.mjs';
+import { createG4AgentRepairTaskCanonicalVector } from './g4-agent-repair-task-canonical-vector.mjs';
+import { createG4AgentRuntimeRepairCanonicalVector } from './g4-agent-runtime-repair-canonical-vector.mjs';
 import { createG4AgentEvaluationCanonicalVector } from './g4-agent-evaluation-canonical-vector.mjs';
 import { createG4AgentEvaluationHumanAuthorityVector } from './g4-agent-evaluation-human-authority-vector.mjs';
 import { createG4AgentClosureCanonicalVector } from './g4-agent-closure-canonical-vector.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const targets = [
+  { label: 'Agent runtime repair canonical vector', target: path.join(root, 'apps/backend/internal/platform/agentcontract/testdata/agent-runtime-repair-vector.json'), value: createG4AgentRuntimeRepairCanonicalVector() },
+  { label: 'Agent repair Task canonical vector', target: path.join(root, 'apps/backend/internal/platform/agentcontract/testdata/agent-repair-task-vector.json'),
+    value: createG4AgentRepairTaskCanonicalVector() },
   {
     label: 'Agent',
     target: path.join(
@@ -36,6 +44,8 @@ const targets = [
       ...agentProposalFactWireSchemas,
       ...agentVerificationFactWireSchemas,
       ...agentProductWireSchemas,
+      ...agentTaskOutputWireSchemas,
+      ...agentRepairTaskWireSchemas,
       ...agentEvaluationFactWireSchemas,
       ...agentG4ClosureManifestWireSchemas,
     },
@@ -106,6 +116,8 @@ const targets = [
   },
 ];
 const mode = process.argv[2] ?? 'check';
+targets.push({ label: 'Agent Task output canonical vector', target: path.join(root,
+  'apps/backend/internal/platform/agentcontract/testdata/agent-task-output-vector.json'), value: createG4AgentTaskOutputCanonicalVector() });
 
 for (const { label, target, value } of targets) {
   const prettierConfig = (await resolveConfig(target)) ?? {};

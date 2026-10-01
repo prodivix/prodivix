@@ -37,3 +37,15 @@ pnpm run verify:g1:browser
 `verify:g1:browser` 使用独立生产构建和真实浏览器 GPU capability，不等同于视觉回归。
 视觉回归、无障碍、性能、ExecutionProvider、Data/API lifecycle、第二 framework target 与
 正式 `VerificationEvidence` 分别进入后续 Global Phase，不属于 G1 退出条件。
+
+## VS Code 集成修复证据（2026-10-01，本地）
+
+- `pnpm --filter @prodivix/vscode test`：Passed，2 files / 6 tests；包含 current PIR codec/typed semantic symbols、
+  真正 Webview 内容与 revision refresh、只读 CSP/resource admission、注册/释放，以及扩展打包 stdio DAP 入口。
+- `pnpm --filter @prodivix/vscode-debugger test`：Passed，1 file / 6 tests；包含独立打包 stdio startup、真实 Program
+  launch/breakpoint/step/stack/scopes/values/termination、source drift/UTF-8/revision/unknown capability 和坐标约定。
+- `pnpm --filter @prodivix/vscode run package`：Passed，本地 typecheck、lint 与 production bundle。
+- `pnpm run check:g3-boundaries`：Passed，本地 owner/application boundary。
+
+这些是扩展只读结构与 NodeGraph DAP adapter 的局部证据，不替代完整 G1 Renderer parity、完整 Workspace 依赖 host、
+Extension Development Host GUI 或当前修复提交的远端 CI。GUI 与远端证据保持 Evidence pending。

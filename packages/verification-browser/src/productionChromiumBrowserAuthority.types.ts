@@ -1,9 +1,14 @@
-import type { BehaviorScenarioProgram } from '@prodivix/behavior';
+import type {
+  BehaviorScenarioProgram,
+  BehaviorControlProfile,
+  BehaviorFixtureSet,
+} from '@prodivix/behavior';
 import type {
   DeterministicRuntimeProvider,
   DeterministicRuntimeProviderHooks,
   ExecutableProjectSnapshot,
   ExecutionBuildBundle,
+  ExecutionAuthSessionFixtureResponse,
 } from '@prodivix/runtime-core';
 import type {
   VerificationAbortSignal,
@@ -13,6 +18,7 @@ import type {
   BrowserVerificationRuntimeIdentity,
   BrowserVerificationTargetLease,
   BrowserVerificationTargetLeasePort,
+  BrowserVerificationBaselineAssetPort,
 } from './browserAdapter.types';
 import type { PlaywrightBrowserImageAuthorityReceipt } from './browserImageAuthority';
 import type {
@@ -214,6 +220,7 @@ export type ProductionChromiumBrowserAuthorityOptions = Readonly<{
   runtimeProvider: ProductionBrowserRemoteRuntimeProviderPort;
   canaryScanner: ProductionBrowserCanaryScannerPort;
   resourceVerificationTimeoutMs?: number;
+  baselineAssets?: BrowserVerificationBaselineAssetPort;
 }>;
 
 export type ProductionChromiumBrowserRegistrationInput = Readonly<{
@@ -228,6 +235,13 @@ export type ProductionChromiumBrowserRegistrationInput = Readonly<{
   remoteExecution: ProductionBrowserRemoteExecutionEvidence;
   executableSnapshotReceipt: ProductionBrowserExecutableSnapshotReceipt;
   projectionAuthorityDigest: string;
+  controlProfile?: BehaviorControlProfile;
+  fixtureSets?: readonly BehaviorFixtureSet[];
+  authSessionFixtureBinding?: Omit<
+    ExecutionAuthSessionFixtureResponse,
+    'invocationId' | 'attempt'
+  >;
+  fixtureProjectionReceiptDigest?: string;
   securityObservationSet?: BrowserSecurityObservationSet;
 }>;
 

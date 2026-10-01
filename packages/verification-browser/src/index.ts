@@ -49,6 +49,9 @@ export {
   assertBrowserVerificationCellInputCoordinates,
   createBrowserVerificationProfileInputRef,
   decodeBrowserVerificationCellInput,
+  decodeBrowserVerificationCellProfile,
+  decodeAuthoredBrowserVerificationCellProfile,
+  type AuthoredBrowserVerificationCellProfile,
   digestBrowserVerificationBytes,
   encodeBrowserVerificationCellInput,
 } from './browserVerificationCellInput';
@@ -129,6 +132,8 @@ export {
   createProductionBrowserBuildBundleDigest,
   createProductionBrowserCanaryScanReceipt,
   createProductionBrowserExecutableSnapshotReceipt,
+  createProductionBrowserRuntimeIdentity,
+  createProductionChromiumRuntimeAuthority,
   createProductionBrowserRemoteExecutionEvidence,
   assertProductionBrowserExecutableSnapshotReceipt,
 } from './productionChromiumBrowserAuthorityResources';

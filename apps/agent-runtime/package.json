@@ -1,0 +1,41 @@
+{
+  "name": "@prodivix/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run typecheck && esbuild src/main.ts src/driver-main.ts --bundle --external:typescript --external:playwright-core --platform=node --format=esm --target=node22 --outdir=dist && node dist/main.js --help && node dist/driver-main.js --help",
+    "typecheck": "tsc -p tsconfig.test.json --pretty false",
+    "test": "pnpm run typecheck && vitest run",
+    "lint": "eslint .",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "start:driver": "node dist/driver-main.js"
+  },
+  "dependencies": {
+    "@prodivix/ai": "workspace:*",
+    "@prodivix/animation": "workspace:*",
+    "@prodivix/behavior": "workspace:*",
+    "@prodivix/data": "workspace:*",
+    "@prodivix/nodegraph": "workspace:*",
+    "@prodivix/pir": "workspace:*",
+    "@prodivix/prodivix-compiler": "workspace:*",
+    "@prodivix/router": "workspace:*",
+    "@prodivix/runtime-core": "workspace:*",
+    "@prodivix/runtime-remote": "workspace:*",
+    "@prodivix/shared": "workspace:*",
+    "@prodivix/verification": "workspace:*",
+    "@prodivix/verification-adapters": "workspace:*",
+    "@prodivix/verification-browser": "workspace:*",
+    "@prodivix/workspace": "workspace:*",
+    "@prodivix/workspace-sync": "workspace:*",
+    "playwright-core": "1.61.1",
+    "typescript": "~6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.9"
+  }
+}

@@ -18,6 +18,7 @@ import {
   readIsolatedServerFunctionExecutionContext,
 } from '@prodivix/server-runtime';
 import { createRemoteWorkerServerFunctionArtifact } from './serverFunctionArtifact';
+import { createUtf8OutputCollector } from './utf8OutputCollector';
 import type {
   RemoteWorkerSandbox,
   RemoteWorkerSandboxResult,
@@ -81,29 +82,7 @@ const commandFor = (
         ? (snapshot.serverFunctionPlan?.command ?? snapshot.buildCommand)
         : snapshot.buildCommand;
 
-type OutputCollector = {
-  stdout: string;
-  stderr: string;
-  truncated: boolean;
-  append(stream: 'stdout' | 'stderr', chunk: Buffer): void;
-};
-
-const collector = (maximumBytes: number): OutputCollector => {
-  let used = 0;
-  const output: OutputCollector = {
-    stdout: '',
-    stderr: '',
-    truncated: false,
-    append(stream, chunk) {
-      const remaining = Math.max(0, maximumBytes - used);
-      const accepted = chunk.subarray(0, remaining);
-      output[stream] += accepted.toString('utf8');
-      used += accepted.length;
-      if (accepted.length < chunk.length) output.truncated = true;
-    },
-  };
-  return output;
-};
+type OutputCollector = ReturnType<typeof createUtf8OutputCollector>;
 
 const run = async (
   input: Readonly<{
@@ -152,6 +131,8 @@ const run = async (
     child.stderr?.on('data', (chunk: Buffer) =>
       input.output.append('stderr', chunk)
     );
+    child.stdout?.once('end', () => input.output.finish('stdout'));
+    child.stderr?.once('end', () => input.output.finish('stderr'));
     child.once('error', (error) => {
       clearTimeout(timer);
       if (forceTimer) clearTimeout(forceTimer);
@@ -197,7 +178,7 @@ export const createFilesystemProcessSandbox = (
       const root = await mkdtemp(resolve(parent, 'prodivix-remote-'));
       if (relative(parent, root).startsWith('..'))
         throw new TypeError('Remote worker temporary root escaped its parent.');
-      const output = collector(input.maximumOutputBytes);
+      const output = createUtf8OutputCollector(input.maximumOutputBytes);
       try {
         for (const file of projectExecutableProjectRuntimeFiles(
           input.snapshot,

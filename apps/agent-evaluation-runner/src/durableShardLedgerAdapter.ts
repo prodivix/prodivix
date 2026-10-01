@@ -860,7 +860,7 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     input: Parameters<AgentEvaluationDurableShardLedger['reserveBudget']>[0]
   ): Promise<AgentBudgetLedgerResult> {
     const current = await this.#budgetAt(input.expectedRevision);
-    const expected = reserveAgentBudget(current, input);
+    const expected = reserveAgentBudget(current.state, input);
     if (!expected.ok) return expected;
     const rawResponse = exact(
       await this.#client.reserveBudget(
@@ -878,7 +878,10 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
         'replayed',
       ]
     );
-    void boolean(rawResponse.replayed);
+    const replayed = boolean(rawResponse.replayed);
+    const original = current.reservations.find(
+      ({ reservationId }) => reservationId === input.reservationId
+    );
     const response = budgetReservation({
       reservationId: rawResponse.reservationId,
       ledgerRevision: rawResponse.ledgerRevision,
@@ -888,7 +891,9 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     });
     if (
       response.reservationId !== input.reservationId ||
-      response.ledgerRevision !== expected.state.revision ||
+      response.ledgerRevision !==
+        (original?.ledgerRevision ?? expected.state.revision) ||
+      (original !== undefined && !replayed) ||
       response.demandDigest !== expected.reservation.demandDigest ||
       response.reservedAt !== input.reservedAt ||
       !sameCanonicalJson(response.demand, expected.reservation.demand)
@@ -902,7 +907,7 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     input: Parameters<AgentEvaluationDurableShardLedger['reconcileBudget']>[0]
   ): Promise<AgentBudgetLedgerResult> {
     const current = await this.#budgetAt(input.expectedRevision);
-    const expected = reconcileAgentBudgetReservation(current, input);
+    const expected = reconcileAgentBudgetReservation(current.state, input);
     if (!expected.ok || !expected.reservation.settlement) return expected;
     const raw = exact(
       await this.#client.reconcileBudget(
@@ -920,7 +925,10 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
         'replayed',
       ]
     );
-    void boolean(raw.replayed);
+    const replayed = boolean(raw.replayed);
+    const original = current.settlements.find(
+      ({ reservationId }) => reservationId === input.reservationId
+    );
     const response = budgetSettlement({
       reservationId: raw.reservationId,
       ledgerRevision: raw.ledgerRevision,
@@ -930,7 +938,9 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     });
     if (
       response.reservationId !== input.reservationId ||
-      response.ledgerRevision !== expected.state.revision ||
+      response.ledgerRevision !==
+        (original?.ledgerRevision ?? expected.state.revision) ||
+      (original !== undefined && !replayed) ||
       response.settlementDigest !==
         expected.reservation.settlement.settlementDigest ||
       response.settledAt !== input.settledAt ||
@@ -1009,7 +1019,7 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
       this.#assertReceiptPartition(receipt)
     );
     const current = await this.#budgetAt(input.expectedRevision);
-    const expected = settleAgentBudget(current, {
+    const expected = settleAgentBudget(current.state, {
       reservationId: input.reservationId,
       expectedRevision: input.expectedRevision,
       actual: input.actual,
@@ -1212,7 +1222,14 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     if (
       !sameCanonicalJson(acknowledgedAttempt, input.attempt) ||
       settlement.reservationId !== input.reservationId ||
-      settlement.ledgerRevision !== expected.state.revision ||
+      settlement.ledgerRevision !==
+        (current.settlements.find(
+          ({ reservationId }) => reservationId === input.reservationId
+        )?.ledgerRevision ?? expected.state.revision) ||
+      (current.settlements.some(
+        ({ reservationId }) => reservationId === input.reservationId
+      ) &&
+        !boolean(raw.replayed)) ||
       settlement.settlementDigest !== expectedSettlement.settlementDigest ||
       settlement.settledAt !== input.settledAt ||
       !sameCanonicalJson(settlement.settlement, expectedSettlement)
@@ -1293,10 +1310,25 @@ export class HttpAgentEvaluationDurableShardLedger implements AgentEvaluationDur
     }
   }
 
-  async #budgetAt(expectedRevision: number): Promise<AgentBudgetLedgerState> {
-    const current = await this.getBudgetLedger();
-    if (current.revision !== expectedRevision) invalid();
-    return current;
+  async #budgetAt(expectedRevision: number): Promise<
+    Readonly<{
+      state: AgentBudgetLedgerState;
+      reservations: readonly BudgetReservationExport[];
+      settlements: readonly BudgetSettlementExport[];
+    }>
+  > {
+    const response = await this.#client.getBudget();
+    const state = decodeAgentEvaluationDurableBudget(response, this.#plan);
+    if (state.revision !== expectedRevision) invalid();
+    const projection = response as {
+      reservations: readonly unknown[];
+      settlements: readonly unknown[];
+    };
+    return Object.freeze({
+      state,
+      reservations: projection.reservations.map(budgetReservation),
+      settlements: projection.settlements.map(budgetSettlement),
+    });
   }
 }
 

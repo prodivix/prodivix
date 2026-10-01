@@ -1,0 +1,18 @@
+{
+  "repositoryRoot": "/opt/prodivix",
+  "backendURL": "https://backend.example.invalid",
+  "backendCredentialEnvironmentVariable": "PRODIVIX_AGENT_RUNTIME_TOKEN",
+  "driverCredentialEnvironmentVariable": "PRODIVIX_G3_DRIVER_TOKEN",
+  "providerId": "prodivix.agent-runtime-g3",
+  "port": 9001,
+  "maximumConcurrentRuns": 1,
+  "stateDirectory": "/var/lib/prodivix/g3-driver",
+  "attestation": {
+    "keyId": "ordinary-g3-ed25519",
+    "issuer": "prodivix-g3-driver",
+    "audience": "prodivix-verification",
+    "subject": "ordinary-agent-g3",
+    "policyGeneration": 1,
+    "privateKeyEnvironmentVariable": "PRODIVIX_G3_ED25519_PKCS8"
+  }
+}

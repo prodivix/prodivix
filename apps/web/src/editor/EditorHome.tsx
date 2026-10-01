@@ -121,9 +121,29 @@ function EditorHome() {
     setIsLoading(true);
     setLoadError(null);
 
+    const localCatalogPromise = listLocalProjectCatalog().then(
+      (localProjects) => {
+        if (!cancelled) {
+          const items = localProjects.map(toLocalItem);
+          setProjects(items);
+          setProjectsInStore(
+            items.map((project) => ({
+              id: project.id,
+              name: project.name,
+              description: project.description,
+              type: project.resourceType,
+              isPublic: project.isPublic,
+              starsCount: project.starsCount,
+            }))
+          );
+          setIsLoading(false);
+        }
+        return localProjects;
+      }
+    );
     Promise.allSettled([
       editorApi.listProjects(token, requestOptions),
-      listLocalProjectCatalog(),
+      localCatalogPromise,
     ])
       .then(([remoteResult, localResult]) => {
         if (cancelled) return;

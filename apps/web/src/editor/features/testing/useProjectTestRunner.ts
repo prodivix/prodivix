@@ -106,6 +106,7 @@ export const useProjectTestRunner = (
       await startProjectTests(plan.snapshot, plan.request, {
         provider,
         accessToken: token,
+        signal: abortController.signal,
       });
       if (!abortController.signal.aborted) setPreflightStatus('idle');
     } catch (error) {

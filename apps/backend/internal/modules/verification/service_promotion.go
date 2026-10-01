@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -230,7 +231,17 @@ func (service *Service) uploadArtifact(
 		)
 		return ArtifactDescriptor{}, err
 	}
-	stored, err := service.store.PutStaging(ctx, promotion.ID, artifactID, body, expected.ExpectedSize)
+	stagingScope := promotion.ID
+	// Callback-bound uploads own temporary bytes independently. A stale upload
+	// must never delete bytes already accepted by a replacement lease holder.
+	if _, guarded := ctx.Value(writeAuthorizationKey{}).(WriteAuthorization); guarded {
+		token, err := randomToken(cryptorand.Reader, 32)
+		if err != nil {
+			return ArtifactDescriptor{}, err
+		}
+		stagingScope += "." + token
+	}
+	stored, err := service.store.PutStaging(ctx, stagingScope, artifactID, body, expected.ExpectedSize)
 	if err != nil {
 		if errors.Is(err, ErrArtifactRejected) {
 			_ = service.repository.MarkPromotionFailed(
@@ -268,7 +279,17 @@ func (service *Service) uploadArtifact(
 		stored, mediaType, stored.Locator, service.now(),
 	)
 	if err != nil {
+		if _, guarded := ctx.Value(writeAuthorizationKey{}).(WriteAuthorization); guarded {
+			if cleanupErr := service.store.DeleteStaging(context.WithoutCancel(ctx), stored.Locator); cleanupErr != nil {
+				return ArtifactDescriptor{}, errors.Join(err, cleanupErr)
+			}
+		}
 		return ArtifactDescriptor{}, err
+	}
+	if row.StagingLocator != stored.Locator {
+		if err := service.store.DeleteStaging(context.WithoutCancel(ctx), stored.Locator); err != nil {
+			return ArtifactDescriptor{}, err
+		}
 	}
 	return ArtifactDescriptor{
 		ID: row.Artifact.ID, Path: row.Artifact.Path, Kind: row.Artifact.Kind,

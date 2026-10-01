@@ -2,7 +2,11 @@ import './PdxDataGrid.scss';
 import PdxEmpty from '../feedback/PdxEmpty';
 import PdxSkeleton from '../feedback/PdxSkeleton';
 import { type PdxComponent } from '@prodivix/shared';
-import { getDataAttributes, mergeClassNames } from '../foundation/component';
+import {
+  getDataAttributes,
+  isInteractiveDescendantEvent,
+  mergeClassNames,
+} from '../foundation/component';
 import { useControllableState } from '../foundation/useControllableState';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type Key } from 'react';
@@ -289,7 +293,12 @@ function PdxDataGrid<T extends Record<string, unknown>>({
                   key={entry.key}
                   onClick={
                     selection.selectable
-                      ? () => {
+                      ? (event) => {
+                          if (
+                            event.defaultPrevented ||
+                            isInteractiveDescendantEvent(event)
+                          )
+                            return;
                           keyboard.setActiveRowKey(entry.key);
                           selection.toggle(entry.key);
                         }
@@ -298,6 +307,11 @@ function PdxDataGrid<T extends Record<string, unknown>>({
                   onKeyDown={
                     selection.selectable
                       ? (event) => {
+                          if (
+                            event.defaultPrevented ||
+                            event.target !== event.currentTarget
+                          )
+                            return;
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
                             keyboard.setActiveRowKey(entry.key);

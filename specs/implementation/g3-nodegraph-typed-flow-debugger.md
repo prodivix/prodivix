@@ -357,6 +357,18 @@ commit `08db3e0f` 的 [V8 CI Job](https://github.com/prodivix/prodivix/actions/r
 - graph 需要跨 worker durable scheduling 时明确移出 G3，保持项目内 aggregate execution。
 - runtime patch 被当作 Workspace patch 时停止产品入口并补领域 adoption planner。
 
+## VS Code DAP adapter（2026-10-01）
+
+`@prodivix/vscode-debugger` 把 VS Code launch、node breakpoint、step、continue、pause/cancel、stack frame 与 bounded output
+请求映射到公开 NodeGraph planner、Program executor 和 debug controller。独立 `.nodegraph.json` wire document 解码后，
+immutable Program 绑定显式 document revision、program digest，以及正式 job/attempt/generation/lease/command sequence。
+本地文件 byte projection 变化或消失后取消会话，要求重新 launch；该 adapter 不把文件 revision 写入 Canonical Workspace。
+
+该默认本地 host 只授予空 capability set，不注入 Data/Server/CodeSlot gateway，不执行任意源码。source range 来自已解码节点
+JSON 对象，DAP coordinate 转换支持 0/1-based client。库导入不自动启动进程，独立与扩展打包入口均通过实际 stdio DAP
+启动测试，包含 launch/断点/单步/frames/values/terminal 与 invalid source/revision/capability 的 fail-closed 检查。
+本地 package Gate 已通过；真实 VS Code GUI、远端 CI 与完整 privileged Workspace host 不据此声明 Passed。
+
 ## 验收标准
 
 - [x] typed ports/edges、descriptor、planner、codec/migration 在所有 owner 间一致。

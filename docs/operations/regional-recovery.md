@@ -109,6 +109,9 @@ proof、token、ciphertext、Terminal session id 或应用输入输出。codec �
 - authorization 已消费但 cutover conflict/失败：安全地签发新 operation/grant；旧 grant不可重放。
 - `replication-lag`/`rpo-bound-exceeded`：等待复制或终止，不提高上限来“让测试通过”。
 - `recovery-blocked` 且 lease 尚存活：等 lease自然到期。
-- traffic cutover 已有 durable digest 但 evidence 文件写失败：保持新 Region active，禁止重跑旧 epoch；从受保护
-  job 日志、traffic cutover row 与同一 prepared evidence buffer 做人工 incident record，不回切来修 evidence。
+- job 在执行前独占预留 evidence 文件，并在 traffic epoch commit 前写入、同步 prepared evidence；文件
+  打开、写入或同步失败会阻止 traffic cutover。prepared 文件可能对应失败的 commit，必须通过 immutable
+  traffic cutover row 的 digest 校验，不能仅因文件存在就声明 Region 已切换。
+- traffic commit 后 job 失联：使用已持久化的 exact prepared evidence 与 traffic cutover row 对账，禁止
+  重跑旧 epoch，也不为修 evidence 回切 Region。
 - rollback 是另一个方向相反、epoch 单调增加的新 operation，不允许把 epoch 写回旧值。

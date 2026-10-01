@@ -403,6 +403,12 @@ export const createPostgresRemoteExecutionRepository = (
           result: 'already-terminal',
           execution: await load(client, row),
         };
+      if (row.status === 'cancelling')
+        return {
+          kind: 'cancelled',
+          result: 'already-requested',
+          execution: await load(client, row),
+        };
       const updated = await transitionLocked(
         client,
         row,

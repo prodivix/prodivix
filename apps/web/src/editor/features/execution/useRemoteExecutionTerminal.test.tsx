@@ -91,6 +91,96 @@ const openTerminal = async (client: RemoteExecutionTerminalClient) => {
 };
 
 describe('remote execution terminal input', () => {
+  it.each(['accepted', 'transport-error'] as const)(
+    'isolates a reopened session from an old %s write completion',
+    async (outcome) => {
+      let settleOld!: (result: ExecutionTerminalWriteResult) => void;
+      let rejectOld!: (error: Error) => void;
+      let settleNew!: (result: ExecutionTerminalWriteResult) => void;
+      const oldWrite = new Promise<ExecutionTerminalWriteResult>(
+        (resolve, reject) => {
+          settleOld = resolve;
+          rejectOld = reject;
+        }
+      );
+      const newWrite = new Promise<ExecutionTerminalWriteResult>((resolve) => {
+        settleNew = resolve;
+      });
+      const { client, writes } = createClient(
+        async ({ data, clientSequence }) =>
+          data === 'old'
+            ? oldWrite
+            : data === 'new'
+              ? newWrite
+              : { status: 'accepted', clientSequence }
+      );
+      const { result } = await openTerminal(client);
+      let oldInput!: Promise<boolean>;
+      act(() => {
+        oldInput = result.current.send('old');
+      });
+      await act(async () => {
+        await result.current.close();
+      });
+      await expect(oldInput).resolves.toBe(false);
+      await act(async () => {
+        await result.current.open();
+      });
+      let newInput!: Promise<boolean>;
+      act(() => {
+        newInput = result.current.send('new');
+      });
+      expect(writes).toEqual([
+        { clientSequence: 1, data: 'old' },
+        { clientSequence: 1, data: 'new' },
+      ]);
+      await act(async () => {
+        if (outcome === 'accepted')
+          settleOld({ status: 'accepted', clientSequence: 1 });
+        else rejectOld(new Error('Old transport disconnected'));
+        await Promise.resolve();
+      });
+      expect(result.current.view.phase).toBe('open');
+      expect(result.current.view.error).toBeUndefined();
+      await act(async () => {
+        settleNew({ status: 'accepted', clientSequence: 1 });
+        await expect(newInput).resolves.toBe(true);
+        await expect(result.current.send('next')).resolves.toBe(true);
+      });
+      expect(writes.at(-1)).toEqual({ clientSequence: 2, data: 'next' });
+    }
+  );
+
+  it('ignores a resize result from a closed session', async () => {
+    let settleResize!: (
+      value: Awaited<ReturnType<RemoteExecutionTerminalClient['resize']>>
+    ) => void;
+    const { client } = createClient(async ({ clientSequence }) => ({
+      status: 'accepted',
+      clientSequence,
+    }));
+    const { result } = await openTerminal({
+      ...client,
+      resize: () =>
+        new Promise((resolve) => {
+          settleResize = resolve;
+        }),
+    });
+    let resizing!: Promise<boolean>;
+    act(() => {
+      resizing = result.current.resize(120, 40);
+    });
+    await act(async () => {
+      await result.current.close();
+      await result.current.open();
+    });
+    await act(async () => {
+      settleResize({ status: 'accepted', size: { columns: 120, rows: 40 } });
+      await expect(resizing).resolves.toBe(false);
+    });
+    expect(result.current.emulator.size).toEqual({ columns: 100, rows: 30 });
+  });
+
   it('reports discarded input instead of swallowing a refused write', async () => {
     const { client } = createClient(async ({ clientSequence }) => ({
       status: 'rejected',

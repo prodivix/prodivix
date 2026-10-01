@@ -522,6 +522,7 @@ type MutableNormalization = {
   signals: NormalizedSignal[];
   usage: Map<AgentUsageUnit, AgentUsageAmount>;
   terminal: boolean;
+  streamTerminated: boolean;
   /** One sealed full Provider response explicitly reported queued/in-progress. */
   nonterminalResponseClosed: boolean;
   refusal: boolean;
@@ -649,6 +650,7 @@ const initialState = (
   signals: [],
   usage: new Map(),
   terminal: false,
+  streamTerminated: false,
   nonterminalResponseClosed: false,
   refusal: false,
   truncation: false,
@@ -1436,9 +1438,14 @@ const consumeNativeEvent = (
   state: MutableNormalization,
   raw: unknown
 ): void => {
-  if (state.terminal) return;
+  if (state.terminal && protocolFamily !== 'openai-compatible') return;
+  if (protocolFamily === 'openai-compatible' && raw === '[DONE]') {
+    state.streamTerminated = true;
+    return;
+  }
   state.eventCount += 1;
   if (state.eventCount > state.limits.maximumEvents) {
+    state.streamTerminated = true;
     appendFailure(state, 'native-event-count-limit-exceeded');
     return;
   }
@@ -1448,12 +1455,20 @@ const consumeNativeEvent = (
       maximumBytes: state.limits.maximumEventBytes,
     });
   } catch {
+    state.streamTerminated = true;
     appendFailure(state, 'unsafe-or-oversized-native-event');
     return;
   }
   state.aggregateEventBytes += byteLength(canonicalJsonText(event));
   if (state.aggregateEventBytes > state.limits.maximumAggregateEventBytes) {
+    state.streamTerminated = true;
     appendFailure(state, 'native-event-byte-limit-exceeded');
+    return;
+  }
+  if (state.terminal) {
+    const chunk = object(event);
+    if (Array.isArray(chunk?.choices) && chunk.choices.length === 0)
+      readOpenAIUsage(state, chunk.usage);
     return;
   }
   normalizers[protocolFamily](state, event);
@@ -1512,7 +1527,11 @@ export const normalizeNativeAgentProviderEvents = (
   const state = initialState(normalizeRuntimeLimits(runtimeLimits));
   for (const event of events) {
     consumeNativeEvent(protocolFamily, state, event);
-    if (state.terminal) break;
+    if (
+      state.streamTerminated ||
+      (state.terminal && protocolFamily !== 'openai-compatible')
+    )
+      break;
   }
   finishNativeStream(state);
   const facts: AgentProviderFact[] = drainSignals(state).map(
@@ -1542,7 +1561,11 @@ export const normalizeNativeAgentProviderRuntimeEvents = (
   const state = initialState(normalizeRuntimeLimits(runtimeLimits));
   for (const event of events) {
     consumeNativeEvent(protocolFamily, state, event);
-    if (state.terminal) break;
+    if (
+      state.streamTerminated ||
+      (state.terminal && protocolFamily !== 'openai-compatible')
+    )
+      break;
   }
   finishNativeStream(state);
   const facts: AgentNativeProviderRuntimeFact[] = drainSignals(state).map(
@@ -1671,7 +1694,11 @@ const createNativeAdapter = (
           });
           sequence += 1;
         }
-        if (state.terminal) break;
+        if (
+          state.streamTerminated ||
+          (state.terminal && input.protocolFamily !== 'openai-compatible')
+        )
+          break;
       }
       if (receivedRuntimeEnvelope) {
         if (!receivedUsageEnvelope) {

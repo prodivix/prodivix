@@ -244,7 +244,9 @@ export const createTypeScriptCodeProject = (
         ? undefined
         : ts.ScriptSnapshot.fromString(source);
     },
-    getScriptVersion: (fileName) => readArtifact(fileName)?.revision ?? '0',
+    // A local reversible command can change source before its durable revision advances.
+    getScriptVersion: (fileName) =>
+      readArtifact(fileName) ? String(projectVersion) : '0',
     fileExists,
     readFile,
     readDirectory: (rootDir, extensions, excludes, includes, depth) => {

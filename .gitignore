@@ -17,6 +17,7 @@ lerna-debug.log*
 !*.env.example
 deploy/.env
 deploy/.env.local
+deploy/backend.env
 apps/web/.env
 apps/backend/.env
 

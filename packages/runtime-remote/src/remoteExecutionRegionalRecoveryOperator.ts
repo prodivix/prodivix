@@ -644,6 +644,9 @@ export type CreateRemoteExecutionRegionalRecoveryOperatorOptions = Readonly<{
   maximumProofLifetimeMs: number;
   maximumAcceptedRpoMs: number;
   now?: () => number;
+  persistPreparedEvidence?: (
+    evidence: RemoteExecutionRegionalRecoveryOperatorEvidence
+  ) => Promise<void>;
 }>;
 
 /**
@@ -1049,6 +1052,7 @@ export const createRemoteExecutionRegionalRecoveryOperator = (
                   ? initiatedAt
                   : fence!.incidentObservedAt,
             });
+            await options.persistPreparedEvidence?.(evidence);
             return Object.freeze({
               // The durable traffic row anchors the complete sanitized
               // evidence record. cutoverCheckpointDigest remains the

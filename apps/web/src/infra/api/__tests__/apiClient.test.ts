@@ -9,6 +9,50 @@ import {
 describe('apiRequest', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('bounds a stalled request and aborts its transport', async () => {
+    vi.useFakeTimers();
+    let transportSignal!: AbortSignal;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_input, init) => {
+        transportSignal = init.signal;
+        return new Promise(() => undefined);
+      })
+    );
+    const request = apiRequest('/stalled', { timeoutMs: 30 }).catch(
+      (error: unknown) => error
+    );
+    await vi.advanceTimersByTimeAsync(30);
+    expect(await request).toBeInstanceOf(TypeError);
+    expect(transportSignal.aborted).toBe(true);
+  });
+
+  it('preserves caller cancellation and releases the deadline after success', async () => {
+    vi.useFakeTimers();
+    const caller = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => undefined))
+    );
+    const pending = apiRequest('/cancelled', { signal: caller.signal }).catch(
+      (error: unknown) => error
+    );
+    caller.abort();
+    expect(await pending).toMatchObject({ name: 'AbortError' });
+    expect(vi.getTimerCount()).toBe(0);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('{}', {
+          headers: { 'content-type': 'application/json' },
+        })
+      )
+    );
+    await expect(apiRequest('/ready')).resolves.toEqual({});
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('preserves the structured error envelope for domain recovery', async () => {
@@ -128,6 +172,43 @@ describe('apiRequest', () => {
     expect(new Headers(request?.headers).get('Authorization')).toBe(
       'Bearer token'
     );
+  });
+
+  it('applies the same byte budget to binary success bodies and cancels excessive streams', async () => {
+    const bytes = new Uint8Array([0, 255, 1, 2]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(bytes, {
+          headers: { 'content-type': 'application/octet-stream' },
+        })
+      )
+    );
+    await expect(
+      apiBinaryRequest('/bounded', { maxResponseBytes: 4 })
+    ).resolves.toEqual({
+      contents: bytes,
+      mediaType: 'application/octet-stream',
+    });
+    const cancel = vi.fn();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes);
+            },
+            cancel,
+          }),
+          { headers: { 'content-type': 'application/octet-stream' } }
+        )
+      )
+    );
+    await expect(
+      apiBinaryRequest('/excessive', { maxResponseBytes: 3 })
+    ).rejects.toThrow('byte budget');
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it('rejects a binary response without an explicit media type', async () => {

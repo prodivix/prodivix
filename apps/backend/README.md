@@ -60,6 +60,7 @@ Settings 使用独立的 durable outbox 与 `POST /api/workspaces/:workspaceId/s
 - `GET /api/workspaces/:workspaceId/capabilities` 声明当前服务支持的 commit contract。
 - fresh project 与 `import-local-project` 在同一数据库事务中创建 Project metadata、Workspace、Route、Settings 与 Documents；upload-aware local import 还在该事务中插入 verified binary blobs。无 Asset 请求保持 JSON，Asset 请求使用一个 reference-only JSON manifest 与 digest-named raw multipart parts；失败时整体回滚。
 - 社区 PIR 只在显式 publish 时由 canonical Workspace 生成 `published_pir_json` 投影。该投影不参与编辑器加载、保存或 Workspace 恢复。
+- `POST /api/projects/:id/publish` 可提交精确 precondition：`{"expected":{"workspaceRev":1,"routeRev":1,"opSeq":1,"documents":[{"documentId":"doc_root","contentRev":1,"metaRev":1}]}}`。文档集合必须完整且唯一。服务端使用与 Atomic Commit 相同的 Workspace / document locks，在同一事务内比较全部修订并提交 publication projection；任一分区变化返回 `409 / WKS-4003`。空请求明确发布服务端最新确认的 Workspace；请求不得携带作者态内容。部署页提供 Community publication 与实际 React/Vite、Vue/Vite Export / build 路径。
 
 ## 产品账号注册与登录
 
@@ -439,6 +440,30 @@ client-only target 仍不得解析 Secret，Worker、snapshot、artifact 与 Pre
 - GitHub `G2 PostgreSQL Gates` 同时运行 Data replay、Server Function live mutation、Environment static/cloud KMS rotation、Binary Asset retention、PIR wire persistence rollout 等 Backend Gate 与
   `@prodivix/runtime-remote-postgres` Control Plane integration Gate；未提供数据库 URL 的普通
   `go test ./...` 会显式 skip 真实数据库用例。
+
+## 普通 Agent Task worker
+
+`apps/agent-runtime` 消费用户创建的普通 durable Task；evaluation runner 继续只承载资格与评估流程。
+服务端配置 `BACKEND_AGENT_RUNTIME_TOKEN_ENV` 为服务器环境变量名，所指 token 至少 32 字节；Node worker
+的 `bearerEnvironmentVariable` 指向保存同一值的服务器环境变量。配置文件只保存名称与公开身份，不能保存
+token 值或 provider credential。内部接口位于 `/api/internal/agent/runtime`，生产创建 Task 要求最近两分钟内
+存在成功 worker poll。未配置 transport 或没有在线 worker 时创建请求会返回明确 unavailable。
+
+用户先通过经过身份验证的项目 Workspace admission challenge 冻结 actor、base revision 与项目 policy；worker
+使用公开 AI policy intersection owner 和可信 operator profile 生成 bounded grant/effective policy。服务端在保存
+结果及创建 immutable Task 时重新检查 owner、当前 base 和摘要。Web/CLI 提交 `admissionId`、`admissionDigest`
+及 admitted Task，随后按 Task 查询自动发现对应普通 Run。缺少或过期的 provider/profile/qualification/config
+会形成 durable blocked Run，不会使用浏览器 draft transport 兜底。
+
+内部 worker API 承载 Task/context、initial Run bootstrap、lease claim/renew、canonical transition、dispatch fence、
+registered proposal/preview、精确 Workspace commit/ACK、G3 Run/Evidence/view/binding/Closure 与独立最终输出。
+取消命令通过专用 durable command link 消费；取消后旧 callback 无法继续 dispatch 或写 Workspace。
+G3 已启动任务必须完成实际 driver 停止、staging 退休和正式 cleanup receipt，才能 ACK clean terminal。
+`task-outputs` 只保存经过公开 owner codec 校验的 bounded answer/plan；用户读取受当前 owner 授权保护。
+
+启动与 sanitized config、公开资格事实、可信 G3 driver 登记、持久 file journal/fsync、ACK 丢失后的 exact replay
+说明见 [`apps/agent-runtime/README.md`](../agent-runtime/README.md)。本地模拟 transport、真实 PostgreSQL 合同测试
+与 paid model/rootless/browser release qualification 是不同层次的证据；外部 qualification 未通过时不得标记 G4 Passed。
 
 完整协议与决策见：
 

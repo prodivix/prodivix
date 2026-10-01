@@ -130,14 +130,26 @@ export const createAgentEvaluationEgressBoundFetch =
             );
             return;
           }
-          const body = Readable.toWeb(incoming) as ReadableStream<Uint8Array>;
-          resolve(
-            new Response(body, {
-              status: incoming.statusCode ?? 500,
-              statusText: incoming.statusMessage,
-              headers: responseHeaders(incoming.rawHeaders),
-            })
-          );
+          try {
+            const status = incoming.statusCode ?? 500;
+            const bodyForbidden =
+              status === 204 || status === 205 || status === 304;
+            const response = new Response(
+              bodyForbidden
+                ? null
+                : (Readable.toWeb(incoming) as ReadableStream<Uint8Array>),
+              {
+                status,
+                statusText: incoming.statusMessage,
+                headers: responseHeaders(incoming.rawHeaders),
+              }
+            );
+            if (bodyForbidden) incoming.resume();
+            resolve(response);
+          } catch (error) {
+            incoming.destroy();
+            reject(error);
+          }
         }
       );
       request.once('socket', (socket) => {

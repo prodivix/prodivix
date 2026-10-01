@@ -5,6 +5,34 @@ import {
 } from '../deterministicScheduler';
 
 describe('deterministic scheduler', () => {
+  it.each(['cancel', 'pause'] as const)(
+    'preserves %s while the final asynchronous task completes',
+    async (action) => {
+      let finish!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const scheduler = createDeterministicScheduler({ maximumTurns: 4 });
+      scheduler.enqueue({
+        id: 'pending',
+        lane: 'data',
+        readyAt: 0,
+        run: () => pending,
+      });
+      const running = scheduler.runNext();
+      if (action === 'cancel') scheduler.cancel('user cancelled');
+      else scheduler.pause();
+      finish();
+      const status = action === 'cancel' ? 'cancelled' : 'paused';
+      expect(await running).toEqual({ status });
+      expect(scheduler.snapshot().status).toBe(status);
+      expect(await scheduler.runNext()).toEqual({ status });
+      if (action === 'pause') {
+        expect(scheduler.resume()).toBe(true);
+        expect(scheduler.snapshot().status).toBe('idle');
+      }
+    }
+  );
   it('runs same-time work by canonical lane and enqueue sequence', async () => {
     const order: string[] = [];
     const scheduler = createDeterministicScheduler({

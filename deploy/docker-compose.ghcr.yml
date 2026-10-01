@@ -29,6 +29,9 @@ services:
   backend:
     image: ghcr.io/${GHCR_NAMESPACE:?set GHCR_NAMESPACE}/prodivix-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
+    env_file:
+      - path: ./backend.env
+        required: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,10 +42,21 @@ services:
       BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
       BACKEND_TOKEN_TTL: ${BACKEND_TOKEN_TTL:-24h}
       BACKEND_VERIFICATION_RESUME_KEY: ${BACKEND_VERIFICATION_RESUME_KEY:?set BACKEND_VERIFICATION_RESUME_KEY}
+      BACKEND_VERIFICATION_ARTIFACT_ROOT: /app/data/verification
+      BACKEND_PASSWORD_RESET_URL: ${BACKEND_PASSWORD_RESET_URL:-}
+      BACKEND_PASSWORD_RESET_TTL: ${BACKEND_PASSWORD_RESET_TTL:-30m}
+      BACKEND_SMTP_HOST: ${BACKEND_SMTP_HOST:-}
+      BACKEND_SMTP_PORT: ${BACKEND_SMTP_PORT:-587}
+      BACKEND_SMTP_FROM: ${BACKEND_SMTP_FROM:-}
+      BACKEND_SMTP_USERNAME: ${BACKEND_SMTP_USERNAME:-}
+      BACKEND_SMTP_PASSWORD: ${BACKEND_SMTP_PASSWORD:-}
+      BACKEND_SMTP_TLS_MODE: ${BACKEND_SMTP_TLS_MODE:-starttls}
       BACKEND_DB_MAX_OPEN_CONNS: ${BACKEND_DB_MAX_OPEN_CONNS:-10}
       BACKEND_DB_MAX_IDLE_CONNS: ${BACKEND_DB_MAX_IDLE_CONNS:-5}
       BACKEND_DB_MAX_LIFETIME: ${BACKEND_DB_MAX_LIFETIME:-30m}
       BACKEND_DB_MIGRATION_TIMEOUT: ${BACKEND_DB_MIGRATION_TIMEOUT:-2m}
+    volumes:
+      - verification-artifacts:/app/data/verification
     healthcheck:
       test:
         ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:8080/api/ping || exit 1']
@@ -80,3 +94,4 @@ services:
 
 volumes:
   postgres-data:
+  verification-artifacts:

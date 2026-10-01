@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 )
@@ -91,6 +92,26 @@ func TestAgentControlVectorMatchesTypeScriptCanonicalFacts(t *testing.T) {
 		}
 		if _, err := CanonicalControlFactDigest(fact); err != nil {
 			t.Fatalf("digest %s control fact: %v", name, err)
+		}
+	}
+}
+
+func TestAgentAuditExportCannotPrecedeItsFinalEvent(t *testing.T) {
+	vector := readAgentControlVector(t)
+	for _, offset := range []time.Duration{-time.Millisecond, 0, time.Millisecond} {
+		fact := decodeAgentControlObject(t, vector.Facts["audit"])
+		value := fact["value"].(map[string]any)
+		events := value["events"].([]any)
+		last := events[len(events)-1].(map[string]any)
+		occurredAt, err := parseInstant(last["occurredAt"])
+		if err != nil {
+			t.Fatal(err)
+		}
+		value["exportedAt"] = occurredAt.Add(offset).UTC().Format("2006-01-02T15:04:05.000Z")
+		refreshAgentControlDigest(t, value, "exportDigest")
+		err = ValidateControlFact(encodeAgentControlObject(t, fact))
+		if (err != nil) != (offset < 0) {
+			t.Fatalf("audit export offset %v validation: %v", offset, err)
 		}
 	}
 }

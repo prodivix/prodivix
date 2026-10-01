@@ -11,6 +11,45 @@ import type {
 } from '@prodivix/workspace';
 
 describe('code resource Workspace VFS projection', () => {
+  it('preserves a newly created empty folder and its parent path', () => {
+    const tree = buildCodeResourceTreeFromWorkspaceVfs({}, 'root', {
+      root: {
+        id: 'root',
+        kind: 'dir',
+        name: '',
+        parentId: null,
+        children: ['src'],
+      },
+      src: {
+        id: 'src',
+        kind: 'dir',
+        name: 'src',
+        parentId: 'root',
+        children: ['empty'],
+      },
+      empty: {
+        id: 'empty',
+        kind: 'dir',
+        name: 'empty',
+        parentId: 'src',
+        children: [],
+      },
+    });
+    expect(
+      tree.children?.map(({ id, path, children }) => ({
+        id,
+        path,
+        children: children?.map(({ id, path }) => ({ id, path })),
+      }))
+    ).toEqual([
+      {
+        id: 'src',
+        path: 'code/src',
+        children: [{ id: 'empty', path: 'code/src/empty' }],
+      },
+    ]);
+    expect(flattenCodeResourceFiles(tree)).toEqual([]);
+  });
   it('keeps every canonical code document visible regardless of root folder', () => {
     const docsById: WorkspaceSnapshot['docsById'] = {
       handler: {

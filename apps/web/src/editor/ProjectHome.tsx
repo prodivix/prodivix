@@ -223,6 +223,7 @@ function ProjectHome() {
           <button
             type="button"
             onClick={handlePublish}
+            title={t('deployment.latestConfirmedHint')}
             disabled={
               !isValidProject ||
               projectIsPublic ||

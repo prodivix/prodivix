@@ -23,7 +23,10 @@ vi.mock('@/infra/api', () => ({
   apiBinaryRequest: apiBinaryRequestMock,
 }));
 
-import { editorApi } from '@/editor/editorApi';
+import {
+  createProjectPublicationExpected,
+  editorApi,
+} from '@/editor/editorApi';
 
 const createWorkspace = (): WorkspaceSnapshot => ({
   id: 'workspace-1',
@@ -124,6 +127,36 @@ describe('editorApi workspace boundary', () => {
   beforeEach(() => {
     apiRequestMock.mockReset();
     apiBinaryRequestMock.mockReset();
+  });
+
+  it('publishes only exact confirmed revision preconditions and keeps latest-confirmed publication explicit', async () => {
+    const workspace = createWorkspace();
+    workspace.docsById['document-1']!.contentRev = 4;
+    workspace.docsById['document-1']!.metaRev = 3;
+    const expected = createProjectPublicationExpected(workspace);
+    apiRequestMock.mockResolvedValue({
+      project: { id: workspace.id, isPublic: true },
+    });
+    await editorApi.publishProject('session', workspace.id, expected);
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      `/projects/${workspace.id}/publish`,
+      expect.objectContaining({
+        token: 'session',
+        method: 'POST',
+        body: JSON.stringify({
+          expected: {
+            workspaceRev: 1,
+            routeRev: 1,
+            opSeq: 1,
+            documents: [
+              { documentId: 'document-1', contentRev: 4, metaRev: 3 },
+            ],
+          },
+        }),
+      })
+    );
+    await editorApi.publishProject('session', workspace.id);
+    expect(apiRequestMock.mock.calls.at(-1)?.[1].body).toBeUndefined();
   });
 
   it('uploads exact bytes under their computed Workspace-scoped digest', async () => {

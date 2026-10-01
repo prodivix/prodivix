@@ -1,10 +1,11 @@
 import type { AiDraftDiagnostic, AiDraftPlan } from './draft.types';
 import { isPlainObject, isUnsafeObjectKey } from '@prodivix/shared/safety';
+import { MAXIMUM_AI_DRAFT_BYTES } from './draftLimits';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   isPlainObject(value) && !Object.keys(value).some(isUnsafeObjectKey);
 
-const MAXIMUM_DRAFT_BYTES = 262_144;
+const MAXIMUM_DRAFT_BYTES = MAXIMUM_AI_DRAFT_BYTES;
 const MAXIMUM_ASSUMPTIONS = 64;
 const MAXIMUM_MILESTONES = 64;
 const MAXIMUM_DRAFT_DEPTH = 8;

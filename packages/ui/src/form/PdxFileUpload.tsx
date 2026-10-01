@@ -134,7 +134,7 @@ function PdxFileUpload({
         id={inputId}
         multiple={multiple}
         onChange={handleInputChange}
-        required={required}
+        required={required && files.length === 0}
         type="file"
       />
       {showList && files.length > 0 && (

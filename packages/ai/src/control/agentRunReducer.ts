@@ -296,6 +296,16 @@ export const reduceAgentRun = (
       )
     );
   }
+  if (Date.parse(event.occurredAt) < Date.parse(state.run.updatedAt)) {
+    return rejected(
+      state,
+      controlIssue(
+        'AI-6004',
+        '/occurredAt',
+        'AgentRun event time precedes the current snapshot.'
+      )
+    );
+  }
   if (
     event.sequence !== state.cursor + 1 ||
     event.previousEventDigest !== state.run.latestEventDigest
@@ -377,6 +387,7 @@ export const reduceAgentRun = (
       if (
         !phase ||
         phase === 'terminal' ||
+        phase === 'cancelling' ||
         !phaseTransitions[state.run.phase].has(phase)
       ) {
         return rejected(
@@ -545,6 +556,8 @@ export const reduceAgentRun = (
         event.type === 'model.started' ? 'model-stream' : 'tool-execution';
       if (
         !operation ||
+        state.run.phase === 'cancelling' ||
+        state.callbackAuthority !== 'active' ||
         operation.kind !== expectedKind ||
         operation.generation !== state.run.generation ||
         state.pendingOperation?.state === 'started'

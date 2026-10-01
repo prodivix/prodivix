@@ -25,7 +25,8 @@ import {
   headerCollapseButtonClassName,
   rightCollapsedButtonClassName,
 } from '../collapseButtonStyles';
-import { useAiCredentialStore } from '@/ai/aiCredentialStore';
+import { streamServerDraft } from '@/ai/aiDraftClient';
+import { useAuthStore } from '@/auth/useAuthStore';
 import { useAiSettingsStore } from '@/ai/aiSettingsStore';
 import { BlueprintAssistantSettingsModal } from './BlueprintAssistantSettingsModal';
 
@@ -302,10 +303,10 @@ const DebugToggleButton = ({
 
 /**
  * 蓝图编辑器右下角的最小 AI 闭环：收集当前路由和选中节点上下文，
- * 通过 @prodivix/ai mock provider 生成 plan，暂不写入 PIR。
+ * 通过本地 Mock 或认证的服务器草案接口生成 plan，保持领域写入由正式 Agent Task 链路拥有。
  *
- * Minimal bottom-right AI loop for BlueprintEditor: it collects current route
- * and selected node context, generates a plan through the @prodivix/ai mock provider,
+ * The Blueprint assistant collects current route and selected-node data-only context,
+ * then generates a plan through the local Mock or the authenticated server draft gateway,
  * and does not write to PIR yet.
  */
 export function BlueprintAssistantPanel({
@@ -344,7 +345,7 @@ export function BlueprintAssistantPanel({
     []
   );
   const settings = useAiSettingsStore((state) => state.settings);
-  const apiKey = useAiCredentialStore((state) => state.apiKey);
+  const token = useAuthStore((state) => state.token);
   const contextPreview = useMemo(
     () => [
       { label: t('assistant.context.route'), value: currentPath },
@@ -372,60 +373,59 @@ export function BlueprintAssistantPanel({
     setRawResponse('');
     setTraceId(undefined);
 
-    const task = createBlueprintAssistantTask(
-      normalizedIntent,
-      currentPath,
-      selectedId,
-      abortController.signal
-    );
-    setPromptPreview(
-      stringifyOpenAICompatibleMessages(createOpenAICompatibleMessages(task))
-    );
-    const provider = createProdivixAiProvider({
-      settings,
-      apiKey: apiKey.trim() || undefined,
-      fetcher:
-        settings.provider === 'openai-compatible'
-          ? async (input, init) => {
-              const response = await window.fetch(input, init);
-              return {
-                ok: response.ok,
-                status: response.status,
-                statusText: response.statusText,
-                body: response.body,
-                json: () => response.json() as Promise<unknown>,
-              };
-            }
-          : undefined,
-      mockOutput: {
-        goal: normalizedIntent,
-        assumptions: [
-          t('assistant.mock.assumptions.contextOnly'),
-          t('assistant.mock.assumptions.planOnly'),
-        ],
-        milestones: [
-          {
-            id: 'inspect-context',
-            title: t('assistant.mock.milestones.inspectContext'),
-          },
-          {
-            id: 'draft-ui-intent',
-            title: t('assistant.mock.milestones.draftPlan'),
-          },
-          {
-            id: 'prepare-dry-run',
-            title: t('assistant.mock.milestones.prepareDryRun'),
-          },
-        ],
-      },
-    });
-    const gateway = new AiDraftGateway({
-      provider,
-      tools: new AiDraftToolRegistry(),
-    });
-
     try {
-      for await (const event of gateway.stream(task)) {
+      const task = createBlueprintAssistantTask(
+        normalizedIntent,
+        currentPath,
+        selectedId,
+        abortController.signal
+      );
+      setPromptPreview(
+        stringifyOpenAICompatibleMessages(createOpenAICompatibleMessages(task))
+      );
+      const provider = createProdivixAiProvider({
+        settings: { enabled: true, provider: 'mock' },
+        mockOutput: {
+          goal: normalizedIntent,
+          assumptions: [
+            t('assistant.mock.assumptions.contextOnly'),
+            t('assistant.mock.assumptions.planOnly'),
+          ],
+          milestones: [
+            {
+              id: 'inspect-context',
+              title: t('assistant.mock.milestones.inspectContext'),
+            },
+            {
+              id: 'draft-ui-intent',
+              title: t('assistant.mock.milestones.draftPlan'),
+            },
+            {
+              id: 'prepare-dry-run',
+              title: t('assistant.mock.milestones.prepareDryRun'),
+            },
+          ],
+        },
+      });
+      const gateway = new AiDraftGateway({
+        provider,
+        tools: new AiDraftToolRegistry(),
+      });
+
+      if (settings.provider === 'server' && !token)
+        throw new Error(
+          t('assistant.settings.signIn', 'Sign in to use a server provider.')
+        );
+      const events =
+        settings.provider === 'server'
+          ? streamServerDraft({
+              token: token!,
+              draft: task,
+              preferences: settings,
+              signal: abortController.signal,
+            })
+          : gateway.stream(task);
+      for await (const event of events) {
         if (activeRequestIdRef.current !== requestId) {
           return;
         }
@@ -437,6 +437,7 @@ export function BlueprintAssistantPanel({
         if (event.type === 'raw-delta') {
           setRawResponse((value) => value + event.delta);
         }
+        if (event.type === 'raw-snapshot') setRawResponse(event.rawResponse);
 
         if (event.type === 'validated-output') {
           if (isPlanArtifact(event.output)) {

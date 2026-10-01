@@ -46,6 +46,10 @@ export type AnimationEditorSelection = {
 };
 
 type AnimationEditorInspectorPanelProps = {
+  nodeTargetOptions: readonly { id: string; label: string }[];
+  onAddBinding: () => string | null;
+  onDeleteBinding: (bindingId: string) => void;
+  onUpdateBindingTarget: (bindingId: string, targetNodeId: string) => void;
   timeline: AnimationTimeline | undefined;
   compositions: readonly AnimationComposition[];
   entryCompositionId?: string;
@@ -171,6 +175,10 @@ const getTrackLabel = (track: AnimationTrack) => {
 };
 
 export const AnimationEditorInspectorPanel = ({
+  nodeTargetOptions,
+  onAddBinding,
+  onDeleteBinding,
+  onUpdateBindingTarget,
   timeline,
   compositions,
   entryCompositionId,
@@ -585,6 +593,18 @@ export const AnimationEditorInspectorPanel = ({
             <span className="text-[11px] text-(--text-muted) tabular-nums">
               {bindings.length}
             </span>
+            <button
+              type="button"
+              disabled={!timeline || !nodeTargetOptions.length}
+              onClick={() => {
+                const id = onAddBinding();
+                if (id)
+                  onSelectionChange({ bindingId: id, trackId: undefined });
+              }}
+              className="rounded-lg border border-(--border-default) px-2 py-1 text-xs disabled:opacity-50"
+            >
+              {t('animationEditor.bindings.addBinding')}
+            </button>
           </div>
 
           <select
@@ -612,9 +632,44 @@ export const AnimationEditorInspectorPanel = ({
               <div className="text-[10px] tracking-[0.08em] text-(--text-muted) uppercase">
                 {t('animationEditor.inspector.binding.targetNode')}
               </div>
-              <div className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs text-(--text-primary)">
-                {binding.targetNodeId}
-              </div>
+              <select
+                aria-label={t('animationEditor.inspector.binding.targetNode')}
+                value={binding.targetNodeId}
+                onChange={(event) =>
+                  onUpdateBindingTarget(binding.id, event.target.value)
+                }
+                className="w-full rounded-lg border border-(--border-default) bg-(--bg-panel) px-2 py-1.5 text-xs text-(--text-primary)"
+              >
+                {!nodeTargetOptions.some(
+                  (node) => node.id === binding.targetNodeId
+                ) ? (
+                  <option value={binding.targetNodeId}>
+                    {binding.targetNodeId}
+                  </option>
+                ) : null}
+                {nodeTargetOptions.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                aria-label={t(
+                  'animationEditor.bindings.remove',
+                  'Remove binding'
+                )}
+                onClick={() => {
+                  onDeleteBinding(binding.id);
+                  onSelectionChange({
+                    bindingId: undefined,
+                    trackId: undefined,
+                  });
+                }}
+                className="text-xs text-(--danger-color)"
+              >
+                {t('animationEditor.bindings.remove', 'Remove binding')}
+              </button>
               <p className="m-0 text-[10px] text-(--text-muted)">
                 {t('animationEditor.inspector.binding.targetHint')}
               </p>

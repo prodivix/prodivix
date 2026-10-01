@@ -240,6 +240,10 @@ const providerTransport = (
         Object.freeze({
           async execute(request: AgentEvaluationProviderResourceRequest) {
             const endpoint = new URL(request.endpoint);
+            if (request.method === 'DELETE') {
+              mutationKinds.push('delete-resource');
+              return responseFor(request, { deleted: true }, clock);
+            }
             if (protocolFamily === 'openai-responses') {
               if (endpoint.pathname === '/v1/files') {
                 mutationKinds.push('upload-content');
@@ -364,6 +368,7 @@ const journal = (
     AgentHostedRetrievalRuntimeResourceLifecycleDispatchStageClaimReceipt
   >();
   const latestTransport = new Map<CanonicalDigest, CanonicalDigest>();
+  const intentDigestById = new Map<string, CanonicalDigest>();
   let activeStore: AgentHostedRetrievalRuntimeResourceLifecycleTransportStoreRequest | null =
     null;
   let activeStoreReceiptDigest: CanonicalDigest | null = null;
@@ -373,6 +378,16 @@ const journal = (
 
   const client = Object.freeze({
     async stageDispatch(request) {
+      const priorDigest = intentDigestById.get(request.dispatchIntent.intentId);
+      if (
+        priorDigest !== undefined &&
+        priorDigest !== request.dispatchIntent.intentDigest
+      )
+        throw new Error('namespace/intent_id uniqueness conflict');
+      intentDigestById.set(
+        request.dispatchIntent.intentId,
+        request.dispatchIntent.intentDigest
+      );
       const prior = latestClaim.get(request.dispatchIntent.intentDigest);
       const initial = prior === undefined;
       expect(request.dispatchStageClaimRequest.expectedDispatchGeneration).toBe(
@@ -518,7 +533,10 @@ const journal = (
         createAgentHostedRetrievalRuntimeResourceLifecycleTransportJournalArchiveRecord(
           request.journalRecord,
           {
-            budgetClosureProjection,
+            budgetClosureProjection:
+              request.journalRecord.dispatchIntentSet.operation === 'delete'
+                ? null
+                : budgetClosureProjection,
             budgetClosureProjectionDigest:
               budgetClosureProjection.projectionDigest,
           }
@@ -527,6 +545,8 @@ const journal = (
         request.spoolDispositionReceipt.spoolReceiptDigest
       );
       activeSpools.delete(request.spoolDispositionReceipt.spoolRef);
+      activeStore = null;
+      activeStoreReceiptDigest = null;
       sealCount += 1;
       return createAgentHostedRetrievalRuntimeResourceLifecycleSealReceipt(
         request,
@@ -547,6 +567,7 @@ const journal = (
     activeSpools,
     prefixLengths,
     sealCount: () => sealCount,
+    intentDigestById,
   });
 };
 
@@ -959,6 +980,75 @@ const reconciliationTransport = (
 };
 
 describe('production hosted lifecycle progressive durability', () => {
+  it('deletes auxiliary and primary resources under one registration with distinct durable intent identities', async () => {
+    const clock = createClock();
+    const fixture = registrationFixture('openai-responses');
+    const closures = budgetClosures();
+    const durable = journal(clock, closures.read);
+    const outbound = providerTransport(
+      'openai-responses',
+      fixture.contentBytes,
+      clock
+    );
+    const provider =
+      createProductionAgentEvaluationHostedRetrievalRuntimeResourceProvider({
+        lifecycleOwnerInstanceId: 'owner.progressive',
+        lifecycleScope: fixture.lifecycleScope,
+        journalClient: durable.client,
+        spoolCipher:
+          createAgentEvaluationHostedRetrievalRuntimeResourceLifecycleSpoolCipher(
+            {
+              profile:
+                createAgentEvaluationHostedRetrievalRuntimeResourceLifecycleSpoolProfile(),
+              keys: spoolKeys(),
+              randomBytes: (size) => new Uint8Array(size).fill(7),
+            }
+          ),
+        budgetClosures: closures.source,
+        providerTransport: outbound.transport,
+        clock,
+      });
+    const created = await provider.createResource({
+      request: fixture.request,
+      program: fixture.program,
+      material: fixture.material,
+      signal: new AbortController().signal,
+    });
+    const claimReceipt = {
+      registrationResult: {
+        registrationRequest: fixture.request,
+        authorityDigest: digest('delete-authority'),
+      },
+      receiptDigest: digest('cleanup-claim'),
+      cleanupClaimAuthorityReceiptDigest: digest('cleanup-claim-authority'),
+      claimExpiresAt: new Date(STARTED_AT_MS + 300_000).toISOString(),
+    } as never;
+    const results = [];
+    for (const resourceId of [
+      ...created.auxiliaryResourceIds,
+      created.providerResourceId,
+    ])
+      results.push(
+        await provider.deleteResource({
+          claimReceipt,
+          resourceId,
+          resourceRole:
+            resourceId === created.providerResourceId ? 'primary' : 'auxiliary',
+          signal: new AbortController().signal,
+        })
+      );
+    expect(results.map(({ resourceId }) => resourceId)).toEqual([
+      ...created.auxiliaryResourceIds,
+      created.providerResourceId,
+    ]);
+    expect(
+      new Set(results.map(({ dispatchIntentDigest }) => dispatchIntentDigest))
+        .size
+    ).toBe(2);
+    expect(durable.intentDigestById.size).toBe(4);
+    expect(durable.sealCount()).toBe(3);
+    expect(durable.activeSpools.size).toBe(0);
+  });
   it.each([
     ['openai-responses', ['upload-content', 'create-primary']],
     [

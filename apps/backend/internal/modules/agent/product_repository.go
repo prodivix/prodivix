@@ -189,6 +189,20 @@ func (repository *Repository) StoreRunUserCommand(
 	if err != nil {
 		return RunUserCommandRecord{}, false, err
 	}
+	if task.ActorKind != "user" || task.ActorID != command.ActorID {
+		return RunUserCommandRecord{}, false, ErrUnauthorized
+	}
+	if record, existing, replayErr := loadRunUserCommandTx(ctx, tx, authority.WorkspaceID, command.ActorID, command.IdempotencyKey); replayErr == nil {
+		if !bytes.Equal(existing.Canonical, command.Canonical) {
+			return RunUserCommandRecord{}, false, ErrConflict
+		}
+		if err := tx.Commit(); err != nil {
+			return RunUserCommandRecord{}, false, err
+		}
+		return record, true, nil
+	} else if !errors.Is(replayErr, ErrNotFound) {
+		return RunUserCommandRecord{}, false, replayErr
+	}
 	run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, command.RunID)
 	if err != nil {
 		return RunUserCommandRecord{}, false, err

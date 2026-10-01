@@ -36,6 +36,23 @@ export function getDataAttributes(dataAttributes?: PdxDataAttributes) {
   );
 }
 
+/** Container activation must not consume a descendant control's own action. */
+export function isInteractiveDescendantEvent(event: React.SyntheticEvent) {
+  for (const target of event.nativeEvent.composedPath()) {
+    if (target === event.currentTarget) break;
+    if (
+      target instanceof Element &&
+      (target.matches(
+        'button, a[href], input, select, textarea, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="combobox"]'
+      ) ||
+        target.getAttribute('contenteditable') === '' ||
+        target.getAttribute('contenteditable') === 'true')
+    )
+      return true;
+  }
+  return false;
+}
+
 export function mergeAriaDescribedBy(...values: Array<string | undefined>) {
   const ids = values
     .flatMap((value) => value?.split(/\s+/) ?? [])

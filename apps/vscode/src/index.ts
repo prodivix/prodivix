@@ -1,22 +1,23 @@
 import * as vscode from 'vscode';
+import { previewPIR } from './commands/previewPIR';
+import { PIRDocumentSymbolProvider } from './language/pirDocumentSymbolProvider';
 
 export function activate(context: vscode.ExtensionContext) {
-  // 1. 语言支持
-  //   vscode.languages.registerDocumentSymbolProvider(
-  //     { language: 'pir' },
-  //     new PIRDocumentSymbolProvider()
-  //   )
-
-  // 2. 命令
   context.subscriptions.push(
-    vscode.commands.registerCommand('prodivix.previewPIR', () => {
-      vscode.window.showInformationMessage('PIR Preview 已连接');
+    vscode.languages.registerDocumentSymbolProvider(
+      { language: 'pir' },
+      new PIRDocumentSymbolProvider()
+    ),
+    vscode.commands.registerCommand('prodivix.previewPIR', () =>
+      previewPIR(context)
+    ),
+    vscode.debug.registerDebugAdapterDescriptorFactory('prodivix', {
+      createDebugAdapterDescriptor: () =>
+        new vscode.DebugAdapterExecutable(
+          process.execPath,
+          [context.asAbsolutePath('dist/debugAdapter.js')],
+          { env: { ELECTRON_RUN_AS_NODE: '1' } }
+        ),
     })
   );
-
-  // 3. 调试适配器（稍后实现）
-  //   const factory = new PIRDebugAdapterDescriptorFactory()
-  //   vscode.debug.registerDebugAdapterDescriptorFactory('prodivix', factory)
 }
-
-export function deactivate() {}

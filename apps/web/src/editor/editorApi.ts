@@ -1,5 +1,6 @@
 import { encodePirDocument, type PIRDocument } from '@prodivix/pir';
 import { apiBinaryRequest, apiRequest } from '@/infra/api';
+import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
 import {
   classifyBinaryAssetDelivery,
   createBinaryAssetBlobReference,
@@ -39,6 +40,33 @@ export type ProjectSummary = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ProjectPublicationExpected = Readonly<{
+  workspaceRev: number;
+  routeRev: number;
+  opSeq: number;
+  documents: readonly Readonly<{
+    documentId: string;
+    contentRev: number;
+    metaRev: number;
+  }>[];
+}>;
+export const createProjectPublicationExpected = (
+  workspace: WorkspaceSnapshot
+): ProjectPublicationExpected => ({
+  workspaceRev: workspace.workspaceRev,
+  routeRev: workspace.routeRev,
+  opSeq: workspace.opSeq,
+  documents: Object.values(workspace.docsById)
+    .map((document) => ({
+      documentId: document.id,
+      contentRev: document.contentRev,
+      metaRev: document.metaRev,
+    }))
+    .sort((left, right) =>
+      compareUnicodeCodePoints(left.documentId, right.documentId)
+    ),
+});
 
 export type WorkspaceCapabilitiesResponse = {
   workspaceId: string;
@@ -735,12 +763,17 @@ export const editorApi = {
     return decodeWorkspaceMutation(response, workspace);
   },
 
-  publishProject: async (token: string, projectId: string) =>
+  publishProject: async (
+    token: string,
+    projectId: string,
+    expected?: ProjectPublicationExpected
+  ) =>
     request<{ project: ProjectSummary }>(
       token,
       `/projects/${encodeURIComponent(projectId)}/publish`,
       {
         method: 'POST',
+        ...(expected ? { body: JSON.stringify({ expected }) } : {}),
       }
     ),
 

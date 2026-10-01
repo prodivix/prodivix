@@ -13,6 +13,39 @@ const plan = {
 } as const;
 
 describe('AI draft admission boundary', () => {
+  it('bounds raw output from custom providers before forwarding or retaining it', async () => {
+    const gateway = new AiDraftGateway({
+      provider: {
+        id: 'custom',
+        generate: async () => ({
+          output: plan,
+          rawResponse: 'x'.repeat(300_000),
+        }),
+        async *stream() {
+          for (let index = 0; index < 3; index++)
+            yield { type: 'raw-delta' as const, delta: 'x'.repeat(100_000) };
+        },
+      },
+      tools: new AiDraftToolRegistry(),
+    });
+    const request = {
+      id: 'draft.bound',
+      intent: 'Plan',
+      context: { entries: [] },
+      allowedTools: [],
+    };
+    expect(await gateway.run(request)).toMatchObject({
+      status: 'failed',
+      rawResponse: undefined,
+    });
+    const events = [];
+    for await (const event of gateway.stream(request)) events.push(event);
+    expect(events.filter(({ type }) => type === 'raw-delta')).toHaveLength(2);
+    expect(events.at(-1)).toMatchObject({
+      type: 'completed',
+      result: { status: 'failed', rawResponse: undefined },
+    });
+  });
   it('admits a plan without creating authoring authority', async () => {
     const context = new AiDraftContextBuilder()
       .add({

@@ -7,6 +7,8 @@ import {
   type DeterministicRuntimeControlPlan,
   type DeterministicRuntimeProvider,
   type DeterministicRuntimeSession,
+  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+  normalizeExecutionAuthSessionFixtureResponse,
 } from '@prodivix/runtime-core';
 import {
   compareUnicodeCodePoints,
@@ -318,7 +320,7 @@ export const createProductionBrowserRuntimeControlLease = (
     plan: state.plan,
     executableSnapshotDigest: state.input.snapshot.contentDigest,
     projectionAuthorityDigest: state.projectionAuthorityDigest,
-    expectedRuntimeDispatchCount: 0,
+    expectedRuntimeDispatchCount: state.input.authSessionFixtureBinding ? 1 : 0,
   });
   const leaseId = `runtime-control:${digestVerificationValue({
     attemptId: state.input.attemptId,
@@ -380,11 +382,75 @@ export const createProductionBrowserRuntimeControlLease = (
     },
     expectedWitness: () => requireReadySession(state).witness,
     liveWitness: () => readLiveWitness(requireReadySession(state).session),
+    ...(state.input.authSessionFixtureBinding
+      ? {
+          async resolveRuntimeFixture(
+            request: import('./browserRuntimeControlPort').BrowserRuntimeControlFixtureRequest
+          ) {
+            const ready = requireReadySession(state);
+            const binding = state.input.authSessionFixtureBinding!;
+            const fixture = state.plan.network.fixtures[0];
+            if (
+              !fixture ||
+              fixture.target.kind !== 'auth-session' ||
+              fixture.outcome.kind !== 'result' ||
+              ready.session.network.events().length !== 0 ||
+              request.method !== 'GET' ||
+              request.url !==
+                new URL(
+                  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+                  state.targetLease.origin
+                ).href ||
+              request.attempt !== (fixture.attempt ?? 1)
+            )
+              throw new TypeError(
+                'Production auth fixture request drifted or was replayed.'
+              );
+            const resolution = await ready.session.network.dispatch({
+              kind: 'auth-session',
+              resourceId: fixture.target.resourceId,
+              inputDigest: fixture.inputDigest,
+              ...(fixture.attempt === undefined
+                ? {}
+                : { attempt: fixture.attempt }),
+              ...(fixture.page === undefined ? {} : { page: fixture.page }),
+            });
+            const events = ready.session.network.events();
+            const event = events[0];
+            if (
+              resolution.status !== 'matched' ||
+              resolution.fixtureId !== fixture.id ||
+              !sameCanonicalJson(resolution.value, fixture.outcome.value) ||
+              events.length !== 1 ||
+              !event ||
+              event.sequence !== 1 ||
+              event.requestKind !== 'auth-session' ||
+              event.fixtureId !== fixture.id ||
+              event.resourceId !== fixture.target.resourceId ||
+              event.inputDigest !== fixture.inputDigest ||
+              event.outcome !== 'matched' ||
+              event.reason !== undefined
+            )
+              throw new TypeError(
+                'Production auth fixture has no exact live Core dispatch.'
+              );
+            return normalizeExecutionAuthSessionFixtureResponse({
+              ...binding,
+              invocationId: request.invocationId,
+              attempt: request.attempt,
+            });
+          },
+        }
+      : {}),
     async attest(phase) {
       const ready = requireReadySession(state);
       const issued = [...state.issued.values()];
       if (
-        state.exposedSession!.network.events().length !== 0 ||
+        state.exposedSession!.network.events().length >
+          (state.input.authSessionFixtureBinding ? 1 : 0) ||
+        (phase === 'terminal' &&
+          state.exposedSession!.network.events().length !==
+            (state.input.authSessionFixtureBinding ? 1 : 0)) ||
         (phase === 'initial' &&
           issued.some((candidate) => candidate.phase === 'initial')) ||
         (phase === 'terminal' &&
@@ -504,9 +570,10 @@ export const releaseProductionBrowserRuntimeState = async (
       if (
         !state.terminal ||
         !lease.terminalSealed() ||
+        !sameCanonicalJson(terminalAttestation, state.terminal) ||
         !sameCanonicalJson(
-          lease.assertIssued(terminalAttestation),
-          state.terminal
+          state.issued.get(terminalAttestation.attestationDigest),
+          terminalAttestation
         )
       ) {
         throw new TypeError('Terminal attestation is not exact.');

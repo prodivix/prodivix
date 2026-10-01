@@ -204,10 +204,9 @@ const createYaraXContentScanner = (input: {
   timeoutSeconds: number;
   wallTimeoutMs: number;
   maximumOutputBytes: number;
-  maximumConcurrentScans: number;
+  scanBudget: { active: number; maximum: number };
   runCommand: YaraXCommandRunner;
 }): BinaryAssetContentScanner => {
-  let activeScans = 0;
   return Object.freeze({
     descriptor: Object.freeze({
       id: YARAX_SCANNER_ID,
@@ -222,17 +221,17 @@ const createYaraXContentScanner = (input: {
       if (
         reference.digest !== request.reference.digest ||
         reference.byteLength !== request.reference.byteLength ||
-        activeScans >= input.maximumConcurrentScans
+        input.scanBudget.active >= input.scanBudget.maximum
       ) {
         throw new BinaryAssetScannerUnavailableError(
-          activeScans >= input.maximumConcurrentScans
+          input.scanBudget.active >= input.scanBudget.maximum
             ? 'replicas-exhausted'
             : 'protocol'
         );
       }
       // The slot must be held across scratch-directory creation too: a mkdtemp
       // rejection would otherwise leak it for the whole readiness cache window.
-      activeScans += 1;
+      input.scanBudget.active += 1;
       try {
         const directory = await mkdtemp(join(tmpdir(), 'prodivix-yarax-'));
         try {
@@ -295,7 +294,7 @@ const createYaraXContentScanner = (input: {
           await rm(directory, { force: true, recursive: true });
         }
       } finally {
-        activeScans -= 1;
+        input.scanBudget.active -= 1;
       }
     },
   });
@@ -382,6 +381,7 @@ export const initializeYaraXScannerRuntime = async (
     64,
     'concurrent scan limit'
   );
+  const scanBudget = { active: 0, maximum: maximumConcurrentScans };
   const readinessCacheMs = boundedInteger(
     options.readinessCacheMs,
     0,
@@ -464,7 +464,7 @@ export const initializeYaraXScannerRuntime = async (
       timeoutSeconds,
       wallTimeoutMs,
       maximumOutputBytes,
-      maximumConcurrentScans,
+      scanBudget,
       runCommand,
     });
     const cleanProbe = await scanner.scan({

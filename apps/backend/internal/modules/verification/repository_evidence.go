@@ -53,6 +53,9 @@ func (repository *Repository) commitEvidenceOnce(
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return err
+	}
 	current, err := scanPromotion(tx.QueryRowContext(ctx, promotionSelect+`
 WHERE workspace_id = $1 AND id = $2 AND capability_hash = $3
 FOR UPDATE`, input.Promotion.WorkspaceID, input.Promotion.ID, input.CapabilityHash))
@@ -110,6 +113,9 @@ FOR UPDATE`, input.Promotion.WorkspaceID, input.Promotion.ID, input.CapabilityHa
 		current.WorkspaceID,
 		input.Evidence.PlanDigest,
 	); err != nil {
+		return err
+	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
 		return err
 	}
 	var closureEvidenceCount int
@@ -314,6 +320,9 @@ WHERE id = $1 AND state = $4`,
 		}, input.CommittedAt); err != nil {
 		return err
 	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -379,6 +388,27 @@ func (repository *Repository) MarkPromotionFailed(
 ) error {
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
+	if _, guarded := ctx.Value(writeAuthorizationKey{}).(WriteAuthorization); guarded {
+		tx, err := repository.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := authorizeVerificationWrite(ctx, tx); err != nil {
+			return err
+		}
+		var id string
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM verification_promotions WHERE workspace_id=$1 AND id=$2 FOR UPDATE`, workspaceID, promotionID).Scan(&id); err != nil {
+			return err
+		}
+		if err := authorizeVerificationWrite(ctx, tx); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE verification_promotions SET state='failed',failure_code=$3,version=version+1,updated_at=$4 WHERE workspace_id=$1 AND id=$2 AND state IN('staging','verification-pending')`, workspaceID, promotionID, code, now.UTC()); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
 	_, err := repository.db.ExecContext(ctx, `UPDATE verification_promotions
 SET state = 'failed', failure_code = $3, version = version + 1, updated_at = $4
 WHERE workspace_id = $1 AND id = $2 AND state IN ('staging', 'verification-pending')`,

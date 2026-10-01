@@ -33,7 +33,7 @@ export type GoldenG3V6ControlledDimensionVerificationEvidence = Readonly<{
   suiteCount: 8;
   expectedPassedCaseCount: 28;
   actualPassedCaseCount: 28;
-  ownerPassedCaseCount: 127;
+  ownerPassedCaseCount: 128;
   failedCaseCount: 0;
   skippedCaseCount: 0;
   todoCaseCount: 0;
@@ -70,6 +70,7 @@ const assertExactPassedCases = (
   if (
     expected.size !== expectedTitles.length ||
     report.success !== true ||
+    report.numPassedTests !== suite.expectedOwnerPassedCaseCount ||
     report.numFailedTests !== 0 ||
     report.numPendingTests !== 0 ||
     report.numTodoTests !== 0 ||
@@ -148,7 +149,12 @@ const assertManifest = (): void => {
     manifest.controlledDimensionIds.length !== 17 ||
     manifest.suites.length !== 8 ||
     manifest.expectedPassedCaseCount !== 28 ||
-    manifest.expectedOwnerPassedCaseCount !== 127
+    manifest.expectedOwnerPassedCaseCount !== 128 ||
+    manifest.suites.some(
+      (suite) =>
+        !Number.isSafeInteger(suite.expectedOwnerPassedCaseCount) ||
+        suite.expectedOwnerPassedCaseCount < suite.cases.length
+    )
   ) {
     throw new Error('Golden V6 controlled-dimension manifest drifted.');
   }
@@ -175,7 +181,7 @@ export const verifyGoldenG3V6ControlledDimensions =
           GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.expectedOwnerPassedCaseCount
       ) {
         throw new Error(
-          `Golden V6 controlled dimensions passed ${String(actualPassedCaseCount)}/${String(ownerPassedCaseCount)} controlled/owner cases instead of 28/127.`
+          `Golden V6 controlled dimensions passed ${String(actualPassedCaseCount)}/${String(ownerPassedCaseCount)} controlled/owner cases instead of 28/128.`
         );
       }
       const stableEvidence = Object.freeze({
@@ -203,7 +209,7 @@ export const verifyGoldenG3V6ControlledDimensions =
         suiteCount: 8 as const,
         expectedPassedCaseCount: 28 as const,
         actualPassedCaseCount: 28 as const,
-        ownerPassedCaseCount: 127 as const,
+        ownerPassedCaseCount: 128 as const,
         failedCaseCount: 0 as const,
         skippedCaseCount: 0 as const,
         todoCaseCount: 0 as const,

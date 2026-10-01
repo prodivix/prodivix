@@ -275,7 +275,10 @@ export const decodeServerRuntimeProfile = (
       `Server runtime profile must contain 1-${MAX_SERVER_FUNCTIONS} functions.`
     );
   }
-  const functionsByExport: Record<string, ServerFunctionProfileEntry> = {};
+  const functionsByExport = Object.create(null) as Record<
+    string,
+    ServerFunctionProfileEntry
+  >;
   for (const [exportName, candidate] of entries.sort(([left], [right]) =>
     compareUnicodeCodePoints(left, right)
   )) {
@@ -326,6 +329,7 @@ export const resolveServerFunctionDefinition = (
   exportName: string
 ): ServerFunctionDefinition | undefined => {
   if (!isCanonicalId(artifactId) || !isExportName(exportName)) return undefined;
+  if (!Object.hasOwn(profile.functionsByExport, exportName)) return undefined;
   const entry = profile.functionsByExport[exportName];
   return entry
     ? Object.freeze({

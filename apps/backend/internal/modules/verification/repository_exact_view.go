@@ -108,6 +108,13 @@ func (repository *Repository) GetEvidenceManifest(
 	return loadEvidenceManifest(ctx, repository.db, workspaceID, evidenceID)
 }
 
+func (repository *Repository) GetEvidenceManifestTx(ctx context.Context, tx *sql.Tx, workspaceID, evidenceID string) (VerificationEvidenceManifest, error) {
+	if tx == nil {
+		return VerificationEvidenceManifest{}, ErrInvalid
+	}
+	return loadEvidenceManifest(ctx, tx, workspaceID, evidenceID)
+}
+
 func loadEvidenceManifest(
 	ctx context.Context,
 	queryer readQueryer,

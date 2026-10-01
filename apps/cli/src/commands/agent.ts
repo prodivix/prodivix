@@ -1,21 +1,32 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { Command } from 'commander';
 import {
   createAgentApprovalDecision,
   createAgentRunUserCommand,
+  createAgentRepairTaskAdmissionInput,
+  decodeAgentRepairTaskAdmission,
   decodeAgentControlFact,
   decodeAgentProductLedgerBundle,
   decodeAgentProductView,
   decodeAgentProposalFact,
+  encodeAgentControlFact,
   encodeAgentProductFact,
   encodeAgentProductView,
   encodeAgentProposalFact,
+  resolveAgentTaskAdmission,
   type AgentProductView,
+  type AgentTaskAdmissionResult,
   type AgentRunUserCommandKind,
 } from '@prodivix/ai';
-import { canonicalJsonText } from '@prodivix/shared/canonical';
+import {
+  canonicalJsonText,
+  sameCanonicalJson,
+} from '@prodivix/shared/canonical';
 import { WORKSPACE_AGENT_ACTION_REGISTRY } from '@prodivix/workspace';
+import { isPlainObject } from '@prodivix/shared/safety';
+import { requestBackend, validateBackendUrl } from '../backendTransport.js';
+import { readBoundedCliInput } from '../boundedInput.js';
 
 const MAXIMUM_JSON_BYTES = 8_388_608;
 const ACCESS_TOKEN_ENVIRONMENT_KEY = 'PRODIVIX_ACCESS_TOKEN';
@@ -41,10 +52,7 @@ type ActorOptions = RemoteOptions &
   Readonly<{ actor: string; reason?: string }>;
 
 const readJson = (path: string): unknown => {
-  const bytes = path === '-' ? readFileSync(0) : readFileSync(path);
-  if (bytes.byteLength < 1 || bytes.byteLength > MAXIMUM_JSON_BYTES) {
-    throw new TypeError('Agent JSON input is empty or exceeds 8 MiB.');
-  }
+  const bytes = readBoundedCliInput(path, MAXIMUM_JSON_BYTES);
   return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
 };
 
@@ -57,16 +65,8 @@ const writeText = (path: string, value: string): void => {
   writeFileSync(path, text, { encoding: 'utf8', flag: 'w' });
 };
 
-const accessToken = (): string => {
-  const token = process.env[ACCESS_TOKEN_ENVIRONMENT_KEY]?.trim();
-  if (!token) {
-    throw new TypeError(`${ACCESS_TOKEN_ENVIRONMENT_KEY} is required.`);
-  }
-  return token;
-};
-
 const agentBase = (options: RemoteOptions): string => {
-  const url = new URL(options.baseUrl);
+  const url = validateBackendUrl(options.baseUrl);
   const suppliedPath = url.pathname.replace(/\/+$/u, '');
   const apiPath = suppliedPath.endsWith('/api')
     ? suppliedPath
@@ -79,19 +79,13 @@ const request = async (
   url: string,
   init: RequestInit = {}
 ): Promise<Response> => {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken()}`,
-      Accept: 'application/json',
-      ...init.headers,
-    },
-  });
+  const response = await requestBackend(
+    url,
+    init,
+    ACCESS_TOKEN_ENVIRONMENT_KEY
+  );
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 4_096);
-    throw new Error(
-      `Agent API ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`
-    );
+    throw new Error(`Agent API rejected the request (${response.status}).`);
   }
   return response;
 };
@@ -102,10 +96,14 @@ const requireRun = (options: RemoteOptions): string => {
   return runId;
 };
 
-const loadView = async (options: RemoteOptions): Promise<AgentProductView> => {
+const loadView = async (
+  options: RemoteOptions,
+  signal?: AbortSignal
+): Promise<AgentProductView> => {
   const runId = requireRun(options);
   const response = await request(
-    `${agentBase(options)}/runs/${encodeURIComponent(runId)}/product`
+    `${agentBase(options)}/runs/${encodeURIComponent(runId)}/product`,
+    { signal }
   );
   const decoded = decodeAgentProductLedgerBundle(
     WORKSPACE_AGENT_ACTION_REGISTRY,
@@ -218,12 +216,145 @@ const createTaskCommand = (): Command => {
     if (!decoded.ok || decoded.value.factType !== 'task-record') {
       throw new TypeError('Expected one strict task-record wire fact.');
     }
-    const response = await request(`${agentBase(options)}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: canonicalJsonText(wire),
-    });
-    writeText(options.output, canonicalJsonText(await response.json()));
+    const task = decoded.value.value;
+    if (
+      task.spec.projectId !== options.project ||
+      task.spec.workspaceId !== options.workspace
+    )
+      throw new TypeError(
+        'Task fact does not bind the selected project and Workspace.'
+      );
+    const base = agentBase(options);
+    const controller = new AbortController();
+    const cancel = () =>
+      controller.abort(new Error('Agent Task creation was cancelled.'));
+    process.once('SIGINT', cancel);
+    try {
+      const admission = await resolveAgentTaskAdmission({
+        requestedTask: task,
+        signal: controller.signal,
+        transport: {
+          create: async (signal) =>
+            (
+              await request(`${base}/task-admissions`, {
+                method: 'POST',
+                signal,
+                headers: { 'Content-Type': 'application/json' },
+                body: canonicalJsonText({ task: wire }),
+              })
+            ).json(),
+          load: async (admissionId, signal) =>
+            (
+              await request(
+                `${base}/task-admissions/${encodeURIComponent(admissionId)}`,
+                { signal }
+              )
+            ).json(),
+        },
+      });
+      await submitAdmittedTask(options, admission, controller.signal);
+    } finally {
+      process.removeListener('SIGINT', cancel);
+    }
+  });
+  return command;
+};
+
+const submitAdmittedTask = async (
+  options: RemoteOptions,
+  admission: AgentTaskAdmissionResult,
+  signal: AbortSignal
+): Promise<void> => {
+  signal.throwIfAborted();
+  const response = await request(`${agentBase(options)}/tasks`, {
+    method: 'POST',
+    signal,
+    headers: { 'Content-Type': 'application/json' },
+    body: canonicalJsonText({
+      task: encodeAgentControlFact({
+        factType: 'task-record',
+        value: admission.task,
+      }),
+      admissionId: admission.admissionId,
+      admissionDigest: admission.admissionDigest,
+    }),
+  });
+  const result: unknown = await response.json();
+  signal.throwIfAborted();
+  if (
+    !isPlainObject(result) ||
+    !Object.hasOwn(result, 'task') ||
+    Object.keys(result).some((key) => key !== 'task' && key !== 'replayed') ||
+    (Object.hasOwn(result, 'replayed') && typeof result.replayed !== 'boolean')
+  )
+    throw new TypeError('Created Task response is malformed.');
+  const created = decodeAgentControlFact(result.task);
+  if (
+    !created.ok ||
+    created.value.factType !== 'task-record' ||
+    !sameCanonicalJson(created.value.value, admission.task)
+  )
+    throw new TypeError(
+      'Created Task response does not match the admitted fact.'
+    );
+  writeText(options.output, canonicalJsonText(result));
+};
+
+const createRepairCommand = (): Command => {
+  const command = addRemoteOptions(
+    new Command('repair').description(
+      'derive one repair Task from a preserved failure and its remaining budget; fresh approval is required'
+    ),
+    { run: true, actor: true }
+  );
+  command.action(async () => {
+    const options = command.opts<ActorOptions>();
+    const controller = new AbortController();
+    const cancel = () =>
+      controller.abort(new Error('Agent repair creation was cancelled.'));
+    process.once('SIGINT', cancel);
+    try {
+      const view = await loadView(options, controller.signal);
+      const scope = {
+        ...options,
+        projectId: options.project,
+        workspaceId: options.workspace,
+        actorId: options.actor,
+        view,
+      };
+      const body = createAgentRepairTaskAdmissionInput(scope);
+      const base = agentBase(options);
+      const response = await request(
+        `${base}/runs/${encodeURIComponent(view.identity.runId)}/repair-task-requests`,
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: canonicalJsonText(body),
+        }
+      );
+      const decoded = decodeAgentRepairTaskAdmission(
+        await response.json(),
+        scope
+      );
+      const admission = await resolveAgentTaskAdmission({
+        requestedTask: decoded.request.requestedTask,
+        signal: controller.signal,
+        transport: {
+          create: async () => decoded.challenge,
+          load: async (admissionId, signal) =>
+            (
+              await request(
+                `${base}/task-admissions/${encodeURIComponent(admissionId)}`,
+                { signal }
+              )
+            ).json(),
+        },
+      });
+      await submitAdmittedTask(options, admission, controller.signal);
+    } finally {
+      process.removeListener('SIGINT', cancel);
+    }
   });
   return command;
 };
@@ -400,6 +531,7 @@ export const AGENT_COMMAND_NAMES = Object.freeze([
   'run',
   'propose',
   'plan',
+  'repair',
   'cancel',
   'recover',
   'approve',
@@ -417,6 +549,7 @@ export const createAgentCommand = (): Command =>
     .addCommand(createRunCommand())
     .addCommand(createProposalInspectionCommand('propose', 'preview'))
     .addCommand(createProposalInspectionCommand('plan', 'planning'))
+    .addCommand(createRepairCommand())
     .addCommand(createRunIntentCommand('cancel'))
     .addCommand(createRunIntentCommand('recover'))
     .addCommand(createDecisionCommand('approved'))

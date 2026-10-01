@@ -454,6 +454,8 @@ export const createProductionBrowserLoopbackPreviewHost =
             'content-security-policy':
               "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
             'cross-origin-resource-policy': 'same-origin',
+            'permissions-policy':
+              'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
             'cache-control': 'no-store',
             'referrer-policy': 'no-referrer',
             'x-content-type-options': 'nosniff',

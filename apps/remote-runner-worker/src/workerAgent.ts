@@ -154,6 +154,15 @@ export const createRemoteWorkerAgent = (
     const abort = new AbortController();
     let heartbeatFailure: unknown;
     let heartbeatBusy = false;
+    let leaseDeadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const watchLeaseDeadline = (expiresAt: number): void => {
+      if (leaseDeadlineTimer !== undefined) clearTimeout(leaseDeadlineTimer);
+      leaseDeadlineTimer = setTimeout(
+        () => abort.abort('lease-expired'),
+        Math.min(options.leaseDurationMs, Math.max(0, expiresAt - now()))
+      );
+    };
+    watchLeaseDeadline(claim.lease.expiresAt);
     let cancellationRequested = false;
     let resolvedSecretFields: Record<string, string> | undefined;
     const heartbeat = setInterval(() => {
@@ -167,10 +176,14 @@ export const createRemoteWorkerAgent = (
           leaseDurationMs: options.leaseDurationMs,
         })
         .then((renewal) => {
+          if (abort.signal.aborted) return;
           if (!renewal) abort.abort('lease-lost');
-          else if (renewal.cancellationRequested) {
-            cancellationRequested = true;
-            abort.abort('cancellation-requested');
+          else {
+            watchLeaseDeadline(renewal.lease.expiresAt);
+            if (renewal.cancellationRequested) {
+              cancellationRequested = true;
+              abort.abort('cancellation-requested');
+            }
           }
         })
         .catch((error) => {
@@ -863,6 +876,7 @@ export const createRemoteWorkerAgent = (
       return true;
     } finally {
       clearInterval(heartbeat);
+      if (leaseDeadlineTimer !== undefined) clearTimeout(leaseDeadlineTimer);
       if (resolvedSecretFields)
         Object.keys(resolvedSecretFields).forEach((field) => {
           resolvedSecretFields![field] = '';

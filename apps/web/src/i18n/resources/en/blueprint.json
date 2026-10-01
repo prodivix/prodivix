@@ -67,29 +67,22 @@
       "provider": "Provider",
       "providers": {
         "mock": "Mock",
-        "openaiCompatible": "OpenAI-compatible"
+        "server": "Server configured provider"
       },
-      "baseURL": "Base URL",
-      "apiKey": "API Key",
-      "apiKeyHint": "Kept in memory for this browser session only, so it is never written to browser storage. Re-enter it after a reload.",
+      "serverHint": "Provider connections and credentials are configured on the server.",
+      "signIn": "Sign in to use a server provider.",
+      "serverUnconfigured": "No server provider is available. Configure a provider on the server, then reopen these settings.",
+      "serverProvider": "Configured provider",
+      "selectProvider": "Select a provider",
+      "selectModel": "Select a model",
       "model": "Model",
-      "jsonMode": "Prefer JSON mode",
-      "temperature": "Temperature",
-      "maxOutputTokens": "Max output tokens",
       "mockHint": "Mock mode uses local sample output and does not call an external model.",
       "reset": "Reset",
       "cancel": "Cancel",
       "save": "Save",
-      "validation": {
-        "baseURL": "Base URL is required.",
-        "model": "Model is required.",
-        "temperature": "Temperature must be between 0 and 2.",
-        "credentialTransport": "An API key requires an https base URL, or a loopback address such as http://localhost."
-      },
       "discovery": {
-        "action": "Discover",
-        "empty": "No models were discovered. You can still enter a model manually.",
-        "failed": "Model discovery failed."
+        "action": "Loading configured providers…",
+        "failed": "Could not load the server provider catalog."
       }
     },
     "context": {

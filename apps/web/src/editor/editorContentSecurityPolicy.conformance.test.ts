@@ -30,6 +30,14 @@ const directive = (name: string): readonly string[] => {
 };
 
 describe('editor Content-Security-Policy', () => {
+  it('keeps the production browser runtime cross-origin isolated on every response', () => {
+    expect(nginxConf).toMatch(
+      /add_header Cross-Origin-Opener-Policy "same-origin" always;/
+    );
+    expect(nginxConf).toMatch(
+      /add_header Cross-Origin-Embedder-Policy "credentialless" always;/
+    );
+  });
   it('serves scripts only from this origin', () => {
     // Every runtime the editor loads, including the icon runtimes, is a bundled
     // workspace dependency served from here. A host source or 'unsafe-inline'

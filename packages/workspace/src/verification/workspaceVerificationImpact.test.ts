@@ -5,6 +5,8 @@ import {
   type PIRDocument,
 } from '@prodivix/pir';
 import type { WorkspaceDocument, WorkspaceSnapshot } from '../types';
+import { digestVerificationValue } from '@prodivix/verification';
+import { createWorkspaceSemanticIndexFromSnapshot } from '../authoring/createWorkspaceSemanticIndexFromSnapshot';
 import { createWorkspaceVerificationImpactSet } from './workspaceVerificationImpact';
 
 const pageContent = (componentDocumentId: string): PIRDocument => ({
@@ -140,6 +142,36 @@ const snapshotWithUnownedConfig = (
 };
 
 describe('Workspace Verification semantic impact', () => {
+  it('hashes operational semantic schema and provider identities into portable SHA-256 Plan digests', () => {
+    const after = snapshot(2, 'Renamed product card');
+    const composition = createWorkspaceSemanticIndexFromSnapshot(after);
+    const impact = createWorkspaceVerificationImpactSet({
+      before: snapshot(1, 'Product card'),
+      after,
+      operationIds: ['operation:rename'],
+      frameworkTargets: ['react-vite'],
+      runtimeZones: ['browser'],
+    });
+    expect(composition.status).toBe('ready');
+    expect(impact.status).toBe('ready');
+    if (composition.status !== 'ready' || impact.status !== 'ready')
+      throw new Error('Public impact failed');
+    expect(impact.impactSet.semanticSchemaDigest).toBe(
+      digestVerificationValue(composition.index.snapshotIdentity.schemaVersion)
+    );
+    expect(impact.impactSet.providerSetDigest).toBe(
+      digestVerificationValue(
+        composition.index.snapshotIdentity.providerSetDigest
+      )
+    );
+    expect(impact.impactSet.semanticSchemaDigest).toMatch(
+      /^sha256-[0-9a-f]{64}$/u
+    );
+    expect(impact.impactSet.providerSetDigest).toMatch(
+      /^sha256-[0-9a-f]{64}$/u
+    );
+  });
+
   it('traces changed definitions through typed transitive consumers', () => {
     const result = createWorkspaceVerificationImpactSet({
       before: snapshot(1, 'Product card'),

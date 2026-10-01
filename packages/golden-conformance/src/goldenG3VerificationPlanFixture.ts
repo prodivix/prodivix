@@ -638,8 +638,8 @@ export const createGoldenG3V4PlanInput = (
     adapters,
     adapterRegistryDigest:
       createVerificationAdapterRegistrySnapshot(adapters).snapshotDigest,
-    compilerDigest: 'sha256-g3-v4-compiler',
-    plannerDigest: 'sha256-g3-v4-planner',
+    compilerDigest: digestVerificationValue('g3-v4-compiler'),
+    plannerDigest: digestVerificationValue('g3-v4-planner'),
   };
 };
 

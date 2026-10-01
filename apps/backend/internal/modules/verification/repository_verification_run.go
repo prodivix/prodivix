@@ -14,6 +14,17 @@ func (repository *Repository) CreateVerificationRun(
 	wire VerificationRunSnapshotWire,
 	canonicalWireBytes []byte,
 ) (VerificationRunSnapshotWire, bool, error) {
+	return repository.createVerificationRun(ctx, actorID, wire, canonicalWireBytes, nil)
+}
+
+func (repository *Repository) CreateVerificationRunWithAuthorization(ctx context.Context, actorID string, wire VerificationRunSnapshotWire, canonicalWireBytes []byte, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
+	if authorize == nil {
+		return VerificationRunSnapshotWire{}, false, ErrUnauthorized
+	}
+	return repository.createVerificationRun(ctx, actorID, wire, canonicalWireBytes, authorize)
+}
+
+func (repository *Repository) createVerificationRun(ctx context.Context, actorID string, wire VerificationRunSnapshotWire, canonicalWireBytes []byte, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
 	createdAt, updatedAt, err := verificationRunTimes(
@@ -30,6 +41,13 @@ func (repository *Repository) CreateVerificationRun(
 		return VerificationRunSnapshotWire{}, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Callers acquire narrower owner locks before G3 Run locks, keeping one
+	// consistent order with Agent binding/closure transactions.
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return VerificationRunSnapshotWire{}, false, err
+		}
+	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO verification_runs (
 	workspace_id, id, actor_id, workspace_revision, plan_digest,
 	surface, scope, provider_id, origin, status, cursor,
@@ -63,6 +81,13 @@ ON CONFLICT DO NOTHING`,
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return VerificationRunSnapshotWire{}, false, err
+	}
+	// INSERT may wait on a competing identity. Refresh transaction authority
+	// after that wait; a rejection rolls back both the link and new snapshot.
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return VerificationRunSnapshotWire{}, false, err
+		}
 	}
 	if rows == 0 {
 		var existingActor string
@@ -108,6 +133,17 @@ func (repository *Repository) AppendVerificationRunEvent(
 	event VerificationRunEventWire,
 	eventBytes []byte,
 ) (VerificationRunSnapshotWire, bool, error) {
+	return repository.appendVerificationRunEvent(ctx, actorID, workspaceID, runID, event, eventBytes, nil)
+}
+
+func (repository *Repository) AppendVerificationRunEventWithAuthorization(ctx context.Context, actorID, workspaceID, runID string, event VerificationRunEventWire, eventBytes []byte, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
+	if authorize == nil {
+		return VerificationRunSnapshotWire{}, false, ErrUnauthorized
+	}
+	return repository.appendVerificationRunEvent(ctx, actorID, workspaceID, runID, event, eventBytes, authorize)
+}
+
+func (repository *Repository) appendVerificationRunEvent(ctx context.Context, actorID, workspaceID, runID string, event VerificationRunEventWire, eventBytes []byte, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
 	tx, err := repository.db.BeginTx(
@@ -118,6 +154,11 @@ func (repository *Repository) AppendVerificationRunEvent(
 		return VerificationRunSnapshotWire{}, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return VerificationRunSnapshotWire{}, false, err
+		}
+	}
 	var currentActor string
 	var currentBytes []byte
 	err = tx.QueryRowContext(ctx, `SELECT actor_id, snapshot_bytes
@@ -135,6 +176,11 @@ FOR UPDATE`,
 	}
 	if currentActor != actorID {
 		return VerificationRunSnapshotWire{}, false, ErrUnauthorized
+	}
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return VerificationRunSnapshotWire{}, false, err
+		}
 	}
 	current, _, err := decodeVerificationRunSnapshotWire(
 		json.RawMessage(currentBytes),
@@ -200,6 +246,11 @@ FOR SHARE`,
 		return VerificationRunSnapshotWire{}, false, err
 	}
 	occurredAt, _ := parseInstant(event.OccurredAt)
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return VerificationRunSnapshotWire{}, false, err
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO verification_run_events (
 	workspace_id, run_id, cursor, event_id, event_digest, kind,
 	event_json, event_bytes, occurred_at

@@ -111,6 +111,17 @@ const collectExports = (input: {
   const output: ExportDeclaration[] = [];
   const program = input.project.service.getProgram();
   if (!program) return output;
+  const checker = program.getTypeChecker();
+  const resolveSymbol = (symbol: ts.Symbol): ts.Symbol =>
+    symbol.flags & ts.SymbolFlags.Alias
+      ? checker.getAliasedSymbol(symbol)
+      : symbol;
+  const bindingNames = (name: ts.BindingName): readonly ts.Identifier[] =>
+    ts.isIdentifier(name)
+      ? [name]
+      : name.elements.flatMap((element) =>
+          ts.isOmittedExpression(element) ? [] : bindingNames(element.name)
+        );
 
   for (const artifact of input.artifacts) {
     const fileName = input.project.getFileName(artifact.id);
@@ -122,16 +133,16 @@ const collectExports = (input: {
         hasModifier(statement, ts.SyntaxKind.ExportKeyword)
       ) {
         for (const declaration of statement.declarationList.declarations) {
-          if (!ts.isIdentifier(declaration.name)) continue;
-          addExport(output, {
-            ...input,
-            artifact,
-            fileName,
-            sourceFile,
-            exportName: declaration.name.text,
-            node: declaration.name,
-            kind: 'code-export',
-          });
+          for (const name of bindingNames(declaration.name))
+            addExport(output, {
+              ...input,
+              artifact,
+              fileName,
+              sourceFile,
+              exportName: name.text,
+              node: name,
+              kind: 'code-export',
+            });
         }
         continue;
       }
@@ -190,6 +201,58 @@ const collectExports = (input: {
           kind: 'code-export',
         });
       }
+    }
+    const moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+    if (!moduleSymbol) continue;
+    const exportedNames = new Set(
+      output
+        .filter((entry) => entry.artifact.id === artifact.id)
+        .map((entry) => entry.exportName)
+    );
+    for (const symbol of checker.getExportsOfModule(moduleSymbol)) {
+      const exportName = symbol.getName();
+      if (exportedNames.has(exportName)) continue;
+      const ownDeclaration = symbol
+        .getDeclarations()
+        ?.find((node) => node.getSourceFile() === sourceFile);
+      const target = resolveSymbol(symbol);
+      const starDeclaration = sourceFile.statements.find((statement) => {
+        if (
+          !ts.isExportDeclaration(statement) ||
+          statement.exportClause ||
+          !statement.moduleSpecifier
+        )
+          return false;
+        const imported = checker.getSymbolAtLocation(statement.moduleSpecifier);
+        return (
+          imported &&
+          checker
+            .getExportsOfModule(imported)
+            .some(
+              (candidate) =>
+                candidate.getName() === exportName &&
+                resolveSymbol(candidate) === target
+            )
+        );
+      });
+      const declaration = ownDeclaration ?? starDeclaration;
+      if (!declaration) continue;
+      const node = ts.isNamespaceExport(declaration)
+        ? declaration.name
+        : declaration;
+      addExport(output, {
+        ...input,
+        artifact,
+        fileName,
+        sourceFile,
+        exportName,
+        node,
+        kind: declarationKind(
+          target.valueDeclaration ??
+            target.getDeclarations()?.[0] ??
+            declaration
+        ),
+      });
     }
   }
 

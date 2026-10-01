@@ -33,6 +33,12 @@ flowchart LR
   Planner --> Bundle["Independent project"]
 ```
 
+## 发布与独立构建
+
+编辑器的“发布与构建”页面支持两条实际产品路径：将服务端已确认的 Workspace 发布到社区，以及打开代码导出生成独立 React/Vite 或 Vue/Vite 项目。社区发布保存显式的公开 PIR 投影；页面的公开状态以服务端成功响应为准。独立站需下载并解压导出项目，运行 `pnpm install` 和 `pnpm run build`，再通过所选托管服务上传 `dist` 并配置 SPA 路由回退。
+
+发布页面先读取已保存的完整修订向量，再提交 `workspaceRev`、`routeRev`、`opSeq` 和所有文档的 `contentRev/metaRev`。后端持有与 Atomic Commit 相同的 Workspace 和文档锁，在同一事务中比较修订并提交公开投影；期间发生编辑会返回 `409 / WKS-4003`，需刷新并重新确认。尚未同步的本地编辑应先保存。项目首页的快捷发布明确选择服务端最新确认版本；本地项目和未认证用户需先保存到服务端 Workspace。
+
 ## Parity
 
 Renderer 与 Compiler 必须针对同一 current model 保持语义 parity。受控 JSX/CSS round-trip 同样共享 SourceTrace 与 owner 边界，不能自行发明另一种组件结构。

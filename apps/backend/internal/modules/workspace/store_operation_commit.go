@@ -17,6 +17,19 @@ func (store *WorkspaceStore) CommitWorkspaceOperation(
 	ctx context.Context,
 	params CommitWorkspaceOperationParams,
 ) (*WorkspaceMutationResult, error) {
+	return store.commitWorkspaceOperation(ctx, params, nil)
+}
+
+// CommitWorkspaceOperationWithAuthorization checks a service's exact approval
+// inside the same transaction that locks and commits the canonical Workspace.
+func (store *WorkspaceStore) CommitWorkspaceOperationWithAuthorization(ctx context.Context, params CommitWorkspaceOperationParams, authorize func(context.Context, *sql.Tx) error) (*WorkspaceMutationResult, error) {
+	if authorize == nil {
+		return nil, errors.New("Workspace commit requires an authorization callback")
+	}
+	return store.commitWorkspaceOperation(ctx, params, authorize)
+}
+
+func (store *WorkspaceStore) commitWorkspaceOperation(ctx context.Context, params CommitWorkspaceOperationParams, authorize func(context.Context, *sql.Tx) error) (*WorkspaceMutationResult, error) {
 	if store == nil || store.db == nil {
 		return nil, errors.New("workspace store is not initialized")
 	}
@@ -76,6 +89,11 @@ func (store *WorkspaceStore) CommitWorkspaceOperation(
 	}
 	if err := validateWorkspaceCommitPreconditions(workspace, documents, normalized); err != nil {
 		return rollback(nil, err)
+	}
+	if authorize != nil {
+		if err := authorize(ctx, tx); err != nil {
+			return rollback(nil, err)
+		}
 	}
 
 	state, err := newWorkspaceCommitState(*workspace, routeManifest, documents)

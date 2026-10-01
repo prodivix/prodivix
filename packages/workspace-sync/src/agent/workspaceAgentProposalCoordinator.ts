@@ -133,7 +133,8 @@ const documentMetadata = (
 });
 
 /** Projects the exact revision increments produced by one Atomic Commit ACK. */
-const projectCommittedSnapshot = (
+/** Predicts Atomic Commit partition revisions from a pure domain transaction result. */
+export const projectWorkspaceAgentCommittedSnapshot = (
   before: WorkspaceSnapshot,
   candidate: WorkspaceSnapshot
 ): WorkspaceSnapshot => {
@@ -213,7 +214,7 @@ export const createWorkspaceAgentProposalProjection = (
   const actionPlanResult = createWorkspaceAgentActionTransactionPlan(input);
   if (actionPlanResult.status === 'blocked') return actionPlanResult;
   const actionPlan = actionPlanResult.plan;
-  const projectedTargetSnapshot = projectCommittedSnapshot(
+  const projectedTargetSnapshot = projectWorkspaceAgentCommittedSnapshot(
     actionPlan.baseSnapshot,
     actionPlan.candidateSnapshot
   );

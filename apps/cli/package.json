@@ -6,23 +6,25 @@
   "bin": "./bin/prodivix.js",
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "pnpm run typecheck && esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/cli.js",
+    "build": "pnpm run typecheck && esbuild src/cli.ts --bundle --external:typescript --platform=node --format=esm --target=node22 --outfile=dist/cli.js && node bin/prodivix.js --help",
     "start": "node dist/cli.js",
     "lint": "eslint .",
-    "test": "pnpm run typecheck && tsx --test src/verification.test.ts src/agent.test.ts",
+    "test": "pnpm run typecheck && tsx --test src/verification.test.ts src/agent.test.ts src/backendTransport.test.ts src/workspaceProduct.test.ts src/boundedInput.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prodivix/ai": "workspace:*",
+    "@prodivix/pir": "workspace:*",
+    "@prodivix/prodivix-compiler": "workspace:*",
     "@prodivix/shared": "workspace:*",
     "@prodivix/verification": "workspace:*",
     "@prodivix/workspace": "workspace:*",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "typescript": "~6.0.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
     "esbuild": "^0.28.1",
-    "tsx": "^4.22.4",
-    "typescript": "~6.0.3"
+    "tsx": "^4.22.4"
   }
 }

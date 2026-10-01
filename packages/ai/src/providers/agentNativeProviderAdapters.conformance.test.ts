@@ -10,6 +10,8 @@ import {
   createGeminiInteractionsAgentProviderAdapter,
   createOpenAICompatibleAgentProviderAdapter,
   createOpenAIResponsesAgentProviderAdapter,
+  normalizeNativeAgentProviderEvents,
+  normalizeNativeAgentProviderRuntimeEvents,
   type AgentNativeProviderControlRequest,
   type AgentNativeProviderTransport,
 } from './agentNativeProviderAdapters';
@@ -55,6 +57,53 @@ const common = (
 });
 
 describe('G4 V8 native provider adapter conformance', () => {
+  it('captures trailing compatible usage in batch and async streams without resuming output', async () => {
+    const events = [
+      { choices: [{ delta: { content: 'hello' }, finish_reason: 'stop' }] },
+      { choices: [{ delta: { content: 'late output' }, finish_reason: null }] },
+      { choices: [], usage: { prompt_tokens: 10, completion_tokens: 5 } },
+      '[DONE]',
+      { choices: [], usage: { prompt_tokens: 999, completion_tokens: 999 } },
+    ];
+    const durable = normalizeNativeAgentProviderEvents(
+      'openai-compatible',
+      events,
+      { invocationId: REQUEST.invocationId, occurredAt: NOW }
+    );
+    const runtime = normalizeNativeAgentProviderRuntimeEvents(
+      'openai-compatible',
+      events,
+      { invocationId: REQUEST.invocationId, occurredAt: NOW }
+    );
+    const streamed = [];
+    for await (const fact of createOpenAICompatibleAgentProviderAdapter(
+      common('openai-compatible', events)
+    ).invokeRuntime(REQUEST))
+      streamed.push(fact);
+    for (const facts of [durable, runtime, streamed]) {
+      expect(
+        facts.find(({ factType }) => factType === 'usage-vector')
+      ).toMatchObject({
+        value: {
+          amounts: expect.arrayContaining([
+            expect.objectContaining({
+              unit: 'text-token-input',
+              logicalAmount: '10',
+              confidence: 'reported',
+            }),
+            expect.objectContaining({
+              unit: 'text-token-output',
+              logicalAmount: '5',
+              confidence: 'reported',
+            }),
+          ]),
+        },
+      });
+      expect(
+        facts.filter(({ factType }) => factType === 'provider-event')
+      ).toHaveLength(2);
+    }
+  });
   it.each([
     [
       'openai-responses' as const,

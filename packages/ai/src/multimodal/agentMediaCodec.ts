@@ -280,19 +280,15 @@ const normalizeRepresentation = (
     throw new TypeError('Agent media representation identity is invalid.');
   }
   const transformationReceiptRefs = Object.freeze(
-    [...value.transformationReceiptRefs]
-      .map((ref) => {
-        if (
-          !ref.transformationId.trim() ||
-          !isAgentCanonicalDigest(ref.receiptDigest)
-        ) {
-          throw new TypeError('Media transformation reference is invalid.');
-        }
-        return Object.freeze({ ...ref });
-      })
-      .sort((left, right) =>
-        compareUnicodeCodePoints(left.transformationId, right.transformationId)
-      )
+    [...value.transformationReceiptRefs].map((ref) => {
+      if (
+        !ref.transformationId.trim() ||
+        !isAgentCanonicalDigest(ref.receiptDigest)
+      ) {
+        throw new TypeError('Media transformation reference is invalid.');
+      }
+      return Object.freeze({ ...ref });
+    })
   );
   if (
     new Set(

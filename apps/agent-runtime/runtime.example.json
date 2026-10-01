@@ -1,0 +1,9 @@
+{
+  "backendURL": "https://prodivix.example.invalid/api",
+  "workerId": "agent-runtime.production-1",
+  "bearerEnvironmentVariable": "PRODIVIX_AGENT_RUNTIME_TOKEN",
+  "pollIntervalMs": 1000,
+  "leaseMs": 60000,
+  "stateDirectory": "/var/lib/prodivix/agent-runtime",
+  "bindings": []
+}

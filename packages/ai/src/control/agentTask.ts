@@ -44,7 +44,7 @@ const maximumIntentCharacters = 16_384;
 const maximumIntentBytes = 65_536;
 const wildcardPattern = /[*?[\]{}]/u;
 
-const canonicalTargetScope = (
+export const canonicalizeAgentTargetScope = (
   targets: readonly AgentTargetRef[]
 ): readonly AgentTargetRef[] => {
   if (targets.length === 0 || targets.length > 512) {
@@ -184,7 +184,7 @@ const canonicalTaskSpec = (
     intent: spec.intent,
     intentDigest: spec.intentDigest,
     targetScope: Object.freeze({
-      targets: canonicalTargetScope(spec.targetScope.targets),
+      targets: canonicalizeAgentTargetScope(spec.targetScope.targets),
     }),
     policyRef: Object.freeze({ ...spec.policyRef }),
     policyDigest: spec.policyDigest,

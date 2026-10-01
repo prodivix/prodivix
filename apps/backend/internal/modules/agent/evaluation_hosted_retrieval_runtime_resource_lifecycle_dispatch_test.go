@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -9,6 +10,54 @@ import (
 	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+func TestLifecycleDeleteAdmissionEnforcesDurableReadLeaseFence(t *testing.T) {
+	fence := time.Date(2026, 10, 1, 1, 0, 0, 0, time.UTC)
+	for _, offset := range []time.Duration{-time.Millisecond, 0, time.Millisecond} {
+		t.Run(offset.String(), func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			mock.ExpectBegin()
+			tx, err := db.BeginTx(t.Context(), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			intent := evaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntent{
+				NamespaceID: "namespace", AuthorityDigest: "authority", LifecycleClaimReceiptDigest: "claim",
+				Operation: "delete", CreatedAt: fence.Add(offset),
+			}
+			mock.ExpectQuery("SELECT request.deletion_not_before").WithArgs("namespace", "authority", "claim").WillReturnRows(sqlmock.NewRows([]string{"deletion_not_before"}).AddRow(fence))
+			err = validateEvaluationHostedLifecycleDeletionFenceTx(t.Context(), tx, intent, fence.Add(offset))
+			if (offset < 0) != errors.Is(err, ErrConflict) {
+				t.Fatalf("offset %v admission returned %v", offset, err)
+			}
+			mock.ExpectRollback()
+			_ = tx.Rollback()
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectBegin()
+	tx, _ := db.BeginTx(t.Context(), nil)
+	mock.ExpectQuery("SELECT request.deletion_not_before").WillReturnError(sql.ErrNoRows)
+	if err := validateEvaluationHostedLifecycleDeletionFenceTx(t.Context(), tx, evaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntent{Operation: "delete", CreatedAt: fence}, fence); !errors.Is(err, ErrConflict) {
+		t.Fatalf("missing fence = %v", err)
+	}
+	mock.ExpectRollback()
+	_ = tx.Rollback()
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func evaluationHostedLifecycleDispatchTestDigest(t *testing.T, label string) string {
 	t.Helper()

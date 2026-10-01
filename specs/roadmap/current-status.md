@@ -1,19 +1,19 @@
 # Prodivix 当前状态
 
-> StatusDate: 2026-08-12
+> StatusDate: 2026-10-01
 > 本文件是 G0/G1/G2/G3/G4 当前完成状态的唯一来源。`global-phases.md` 定义阶段目标与退出条件；evidence 文档保存可重复验证证据，不重复声明当前状态。
 
 ## 全局阶段
 
-| Phase                              | Product Gate | 当前判断                                                                                                                                                                                                                   |
-| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                                                                 |
-| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                                                                |
-| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。                                        |
-| G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                                                               |
-| G4 Verified Agentic Development    | In Progress  | V0–V9 已实现且 exact-commit zero-remote deterministic CI 通过；V8/V9 security、PostgreSQL、browser、rootless 与 incomplete manifest 已取得 durable evidence。真实 Provider qualification 与 Global G4 Closure 仍 Pending。 |
-| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                                                             |
-| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                                                             |
+| Phase                              | Product Gate | 当前判断                                                                                                                                                                            |
+| ---------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G0 Truth & Change Kernel           | Passed       | Canonical Workspace、可逆 change、唯一生产写入链、conflict/outbox/local replica 与 Issues closure 已验证。                                                                          |
+| G1 Semantic Hybrid Authoring       | Passed       | PIR-current、Semantic Index、Code/Shader、Component/Collection、controlled round-trip、Asset semantic surface 与 React/Vite Golden 已验证。                                         |
+| G2 Executable Full-stack Workspace | Passed       | current G2 scope 的本地 implementation/product/security closure 与 commit `3f3047b8` 的 non-cloud GitHub evidence 已通过；AWS/真实云 evidence 继续作为外部 pending，不宣称 Passed。 |
+| G3 Behavior & Verification Closure | Passed       | V0-V8 已实现；本地 PostgreSQL 18.4 aggregate 与 commit `08db3e0f` 的 V7 product/OIDC、V8 trusted Closure、manifest artifact 和分布式 CI aggregate 全部通过。                        |
+| G4 Verified Agentic Development    | In Progress  | V0–V9 已实现，历史 exact-commit deterministic CI 与本轮未提交工作树的完整本地 G4 aggregate 通过；本批远端 CI、真实 Provider qualification 与 Global G4 Closure 仍 Pending。         |
+| G5 Collaborative Production Loop   | Blocked      | 等待前置阶段。                                                                                                                                                                      |
+| G6 Trusted Ecosystem               | Blocked      | 等待前置阶段。                                                                                                                                                                      |
 
 阶段定义与退出条件：[`global-phases.md`](./global-phases.md)。G0/G1 重复验证边界：
 [`g0-closure-evidence.md`](./g0-closure-evidence.md)、[`g1-closure-evidence.md`](./g1-closure-evidence.md)。
@@ -32,6 +32,22 @@ G4 contract 与阶段状态：
 [`g4-closure-evidence.md`](./g4-closure-evidence.md)。
 
 ## G4 当前进度
+
+2026-10-01，全量审查后的普通 Task 生产消费组合已补齐：独立 `apps/agent-runtime` 从 durable admission
+消费 Task，执行 callback-bound Provider transport、typed proposal、显式 human approval、唯一
+Outbox/Atomic Commit、实际 G3 driver、失败 Closure 保留、父预算约束的 derived repair，以及 exact reverse
+Transaction 后的重新验证。Web 与 CLI 共用公开 repair admission owner，repair 每轮仍要求新 proposal 和
+新审批；取消、ACK 丢失、worker restart、lease 与资源清理继续 fail closed。本批修改已通过当前未提交工作树的
+完整本地 `verify:g4` aggregate，完成时间、环境与日志见 G4 closure evidence；同一连续 pipeline 的
+format、lint、G4 PostgreSQL/rootless contract、G3 adapter matrix 与 G2 binary Asset aggregate 均 exit 0。
+历史 exact-commit CI 不代表本批修改已经取得远端证据。实际 Provider qualification、protected holdout、human review、usage/cost 与 satisfied
+Global G4 Closure 仍为 `External Evidence Pending`，Global G4 保持 `In Progress`。
+
+ordinary consumer 的当前支持范围为每个 required cell 一次 physical attempt（`maximumAttempts=1`、
+`stabilitySamples=1`），Browser 采用 Chromium，fixture transport 支持无请求或一个 exact Auth session 响应。
+Commit 后 actual Plan 必须与 approved projected Plan digest 相等；不同但 compatible 的 Plan 当前 blocked。
+更宽的 retry/stability、Browser/fixture composition 和 owner compatibility proof 接线属于未实现的代码能力扩展，
+与真实 Provider 或生产部署资格的外部 evidence 分开记录。
 
 2026-08-01，G4 ADR 65–69 production contract set 已冻结；V0 已实现并取得 durable CI evidence；V1 已实现并通过
 `verify:g4:context-policy` 与 `verify:g4:provider-capabilities` 本地 Gate；V2 已实现 media current/wire、确定性
@@ -138,8 +154,8 @@ recovery-read/reconciliation，可信观察缺失时保留 unfinished；partial-
   cache local Gates；production config publication 的 protected execution evidence仍待外部运行。
 - Provider background/continuation state 的 Backend durable vault primitives 已实现 callback-only plaintext、
   per-state data-key destruction、owner-instance isolation、`seal/resolve/retire` receipts、forced-expiry tombstone
-  和 zero-residual health contract。默认 shared-effect stateful owner composition 已接入 production；真实 Provider/
-  PostgreSQL lifecycle evidence仍为 Pending。
+  和 zero-residual health contract。默认 shared-effect stateful owner composition 已接入 production；真实 Provider
+  调用下的 protected PostgreSQL lifecycle evidence仍为 Pending。
 - G4 Exit另需未过期 `verify:g4:model-eval`：128 cases/52 families、每 bucket至少 25% protected holdout、
   24 context与16 media sentinels；ordinary 10、48 critical 30、至少12 high-assurance 100 attempts/configuration，
   首次规范性最低11,640 journeys；当前冻结 release plan 为 14,040 journeys。三个 native Provider/operator/

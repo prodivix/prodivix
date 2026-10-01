@@ -86,6 +86,11 @@ export const LOCAL_WORKSPACE_CAPABILITIES: Record<string, boolean> = {
   'core.animation.definition.update@1.0': true,
   'core.resource.project-config.value.update@1.0': true,
   'core.workspace.code-document.create@1.0': true,
+  'core.workspace.code-document.rename@1.0': true,
+  'core.workspace.code-document.delete@1.0': true,
+  'core.workspace.directory.create@1.0': true,
+  'core.workspace.directory.rename@1.0': true,
+  'core.workspace.directory.delete@1.0': true,
 };
 
 export const LOCAL_READONLY_WORKSPACE_CAPABILITIES: Record<string, boolean> =

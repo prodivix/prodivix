@@ -15,5 +15,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    fileParallelism:
+      process.env.PRODIVIX_VERIFY_G3_V6_BROWSER_MATRIX?.trim() !== '1',
   },
 });

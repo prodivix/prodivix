@@ -1637,7 +1637,7 @@ export const createProductionAgentEvaluationHostedRetrievalRuntimeResourceProvid
         const createdAt = instant(clock);
         const intent =
           createAgentHostedRetrievalRuntimeResourceLifecycleDispatchIntent({
-            intentId: `hosted-lifecycle-intent.${context.operation}.${context.request.requestDigest.slice(7, 39)}.${intents.length}`,
+            intentId: `hosted-lifecycle-intent.${context.operation}.${digestAgentCanonicalValue({ registrationRequestDigest: context.request.requestDigest, mutationSequence: intents.length, mutationKind: mutation.mutationKind, requestProjectionDigest: projection.requestProjectionDigest }).slice(7)}`,
             lifecycleOwnerAuthorityIssuerId:
               AGENT_EVALUATION_HOSTED_RETRIEVAL_RUNTIME_RESOURCE_LIFECYCLE_OWNER_AUTHORITY_ISSUER_ID,
             lifecycleOwnerImplementationDigest:

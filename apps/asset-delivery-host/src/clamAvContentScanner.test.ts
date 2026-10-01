@@ -115,6 +115,22 @@ const requestFor = (contents: Uint8Array) => ({
 });
 
 describe('ClamAV content scanner', () => {
+  it('enforces the whole scan deadline while response bytes keep arriving', async () => {
+    const daemon = await startDaemon((socket) => {
+      const response = Buffer.from('stream: OK\0');
+      let offset = 0;
+      const timer = setInterval(() => {
+        socket.write(response.subarray(offset, ++offset));
+        if (offset === response.length) clearInterval(timer);
+      }, 15);
+      socket.once('close', () => clearInterval(timer));
+    });
+    await expect(
+      scannerFor(daemon.port, { timeoutMs: 60 }).scan(
+        requestFor(new Uint8Array([1]))
+      )
+    ).rejects.toMatchObject({ reason: 'timeout' });
+  });
   it('writes exact bounded INSTREAM frames and accepts only a clean response', async () => {
     const daemon = await startDaemon((socket) => {
       socket.end(Buffer.from('stream: OK\0', 'utf8'));

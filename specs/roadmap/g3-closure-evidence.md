@@ -489,10 +489,24 @@ Data、Auth 与 Recovery 不扩张上述 66 个 Plan cells。root `verify:g3:ada
 | Auth                 | signed-out、signed-in、expired、denied、authorized                   | `auth-owner-principal-projection`、`auth-golden-target-matrix`                               | Passed |
 | Recovery             | cancel、timeout、worker loss、cursor resume、duplicate、out-of-order | `recovery-adapter-lifecycle`、`recovery-browser-process`、`recovery-remote-protocol`         | Passed |
 
-本地 evidence 已记录 exact manifest digest
+历史 V6 本地 evidence 已记录 exact manifest digest
 `sha256-5d7140c03a80aaeb24b43b535dec058827535844ed3d6bc435afc54e3fceeeb9`、`controlled=28`、
 owner-passed cases `127` 与 `skipped=0 todo=0 failed=0`；commit `bd6ef590` 的 V6 Job 已重复执行并绑定
 同一 manifest/evidence digest。
+
+2026-10-01 当前工作树的 owner manifest 登记更新：`recovery-remote-protocol` 所选的
+`remoteExecutionControlPlane.conformance.test.ts` 新增
+`accepts a second cancellation identity while cancellation is pending`，验证第二个合法取消 ID 不产生新的
+terminal transition 或 cursor。该 owner regression 使所选文件的总量从历史 `127` 增为 `128`；
+17 个 profile IDs、8 个 suites、28 个指定 controlled cases 和 66-cell/80-attempt matrix 保持原登记。
+每个 suite 的精确 owner count 进入 canonical manifest，并由 verifier 独立核验，不能靠其他 suite 的数量抵消。
+
+`pnpm --filter @prodivix/golden-conformance test:g3-v6-controlled-dimensions` 当前本地 Passed：按 manifest
+顺序，owner counts 为 `20、9、12、7、14、6、7、53`，合计 `128`，`controlled=28`、
+`failed=0 skipped=0 todo=0`。Remote suite 的三个文件分别为 Client `8`、Control Plane `20`、Provider `25`。
+当前 manifest digest 为 `sha256-59a90752b06d62cabc3c3639a8cde199b861b987a4a1db14c3d40746e040ff2c`，
+evidence digest 为 `sha256-374a46ad037ba540863fb459ed1b797d465c586f902cae5b9dbe21337ccc86d4`。
+这是未提交工作树的本地 evidence；保留上方旧 commit 的原始 `127` 和原 digest，不把它们改写成新 Gate 证据。
 
 ## Required negative evidence
 
@@ -540,6 +554,30 @@ commit `08db3e0f` 的 product job 已通过 Web `9 files / 80 tests`、CLI/Backe
 Scenarios/Verification/Execution/Issues/SourceTrace journey；同一 run 的 V8 job 又以 locked Plan
 执行 Authenticated Catalog 66-cell cross-target Closure。产品 journey 与 canonical evidence 因而均为
 `Passed`，不是由截图或绿色徽章单独推断。
+
+## 2026-10-01 audit repair frozen-worktree adapter aggregate
+
+状态为 **Local aggregate Passed**。在基线 commit `f3f85bc46051d5022a144cfc0084c731307855ed`
+上的未提交修复工作树，以 Windows/amd64、Node 26.3.0、pnpm 11.9.0 执行
+`pnpm run verify:g3:adapter-matrix`，2026-10-01 09:28:16 UTC 退出码 0。
+
+Verification、Adapters、Runtime Core/Vitest/Browser/Remote、Compiler verification probes、Golden
+adapter/browser matrices 和 core/G3 boundary/wire checks 全部通过。启用实际 Chromium/Firefox/WebKit
+矩阵的 Verification Browser package 为 34 files / 212 tests；Golden adapter conformance 为
+14 files / 71 tests；两个实际 Browser Golden files 的 3 tests 通过。完整日志为 `repair-final-g3.log`。
+
+当前矩阵执行 66 cells、8 rows、80 attempts，其中 Browser 72、Static 8；controlled Gate 精确验证
+28 个指定 cases 和 128 个 owner cases，零 failed/skipped/todo。对应摘要为：
+
+- Plan：`sha256-e1ed39281eeee31f05fae9f23f64618cc0000e87cd542625762ab5440e36e633`。
+- Matrix：`sha256-1bd140620275b0597092807840f044a4df8a03d936e4e3b7aec8bc89b9ee693b`。
+- Evidence：`sha256-99d67b1d9fad56cdf9c8738f7171a518f85caf26ab0dc2a5459a4b7a4b560858`。
+- Controlled manifest：`sha256-59a90752b06d62cabc3c3639a8cde199b861b987a4a1db14c3d40746e040ff2c`。
+- Controlled evidence：`sha256-374a46ad037ba540863fb459ed1b797d465c586f902cae5b9dbe21337ccc86d4`。
+
+这证明本机 actual Browser 与 controlled Golden 的当前代码组合，不声明新的 exact-commit remote CI，
+也不替代普通 Node 22/Linux/rootless driver、部署 signer/Backend attestation policy 与真实模型 qualification
+的生产整链证据。上方历史 commit 的原始 evidence identity 继续保留。
 
 ## 状态更新规则
 

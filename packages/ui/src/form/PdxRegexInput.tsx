@@ -66,6 +66,7 @@ function PdxRegexInput({
     }
   }, [pattern]);
 
+  if (safeRegex) safeRegex.lastIndex = 0;
   const isValid = safeRegex ? safeRegex.test(currentValue) : true;
 
   const resolvedState =

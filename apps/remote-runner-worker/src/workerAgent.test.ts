@@ -101,7 +101,7 @@ const claim = (): RemoteExecutionClaimResult => ({
     token: 'lease-1',
     attempt: 1,
     acquiredAt: 1,
-    expiresAt: 100,
+    expiresAt: Date.now() + 10_000,
   },
   execution: {
     ownerId: 'owner-1',
@@ -126,7 +126,7 @@ const claim = (): RemoteExecutionClaimResult => ({
       token: 'lease-1',
       attempt: 1,
       acquiredAt: 1,
-      expiresAt: 100,
+      expiresAt: Date.now() + 10_000,
     },
   },
 });
@@ -608,6 +608,68 @@ describe('remote runner worker', () => {
       defaultMaximumOutputBytes: 1_000,
     });
     await expect(agent.pollOnce()).resolves.toBe(true);
+    expect(transitions).toEqual(['running']);
+  });
+
+  it('stops at the known lease deadline even when renewal remains pending', async () => {
+    const transitions: string[] = [];
+    let renewalStarted = false;
+    let abortReason: unknown;
+    const client: RemoteWorkerControlPlaneClient = {
+      async claim() {
+        return claim();
+      },
+      async renew() {
+        renewalStarted = true;
+        return new Promise(() => undefined);
+      },
+      async snapshot() {
+        return snapshot;
+      },
+      async transition(input) {
+        transitions.push(input.status);
+        return true;
+      },
+      async appendEvent() {
+        return 'stored';
+      },
+      async uploadArtifact() {
+        return 'stored';
+      },
+    };
+    const sandbox: RemoteWorkerSandbox = {
+      async execute(input) {
+        await new Promise<void>((resolveAbort) =>
+          input.signal.addEventListener(
+            'abort',
+            () => {
+              abortReason = input.signal.reason;
+              resolveAbort();
+            },
+            { once: true }
+          )
+        );
+        return {
+          status: 'cancelled',
+          stdout: '',
+          stderr: '',
+          outputTruncated: false,
+        };
+      },
+    };
+    const agent = createRemoteWorkerAgent({
+      workerId: 'worker-1',
+      providerId: provider.id,
+      client,
+      sandbox,
+      leaseDurationMs: 30,
+      heartbeatIntervalMs: 5,
+      defaultTimeoutMs: 1_000,
+      defaultMaximumOutputBytes: 1_000,
+    });
+    await expect(agent.pollOnce()).resolves.toBe(true);
+    expect(renewalStarted).toBe(true);
+    expect(abortReason).toBe('lease-expired');
     expect(transitions).toEqual(['running']);
   });
 

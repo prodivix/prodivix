@@ -1,4 +1,32 @@
 {
+  "deployment": {
+    "title": "Publish and build",
+    "description": "Share a saved project in Community or export a standalone application for your hosting provider.",
+    "communityTitle": "Community publication",
+    "communityDescription": "Publish the confirmed server Workspace as a public Community projection. Unsynced local edits remain pending until saved and refreshed here.",
+    "revision": "Saved Workspace revision {{workspaceRev}}, operation {{opSeq}}",
+    "localOnly": "Save this local project to an authenticated server Workspace before publishing in Community.",
+    "signIn": "Sign in to load the saved publication revision.",
+    "loading": "Loading the saved publication revision…",
+    "published": "Published in Community",
+    "unpublished": "This project is private",
+    "unavailable": "Publication is unavailable. Refresh after resolving the reported error.",
+    "readonly": "This Workspace is read only; publication requires write access.",
+    "loadFailed": "Could not load the saved publication revision.",
+    "publishFailed": "Community publication failed. Refresh the saved revision and retry.",
+    "publishing": "Publishing…",
+    "republish": "Publish this saved revision",
+    "publish": "Publish in Community",
+    "refresh": "Refresh saved revision",
+    "viewCommunity": "View Community publication",
+    "standaloneTitle": "Standalone application",
+    "exportDescription": "Export generates an actual React/Vite or Vue/Vite project from the selected Workspace revision.",
+    "exportStep": "Open Export, select the target, and download the generated project archive.",
+    "buildStep": "Extract the archive, install dependencies, and build the application:",
+    "hostStep": "Upload the generated dist directory through your hosting provider and configure its SPA route fallback.",
+    "openExport": "Open code export",
+    "latestConfirmedHint": "Publishes the latest confirmed server Workspace. Save pending edits before publishing."
+  },
   "execution": {
     "title": "Execution",
     "expand": "Expand execution console",
@@ -2410,7 +2438,8 @@
       "timelineName": "Timeline name",
       "timelineDuration": "Timeline duration (ms)",
       "title": "Bindings",
-      "addBinding": "Add binding"
+      "addBinding": "Add binding",
+      "remove": "Remove binding"
     },
     "inspector": {
       "timeline": {

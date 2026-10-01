@@ -7,14 +7,17 @@ import {
   createAgentHostedRetrievalRuntimeResourceCleanupRequest,
   createAgentHostedRetrievalRuntimeResourceCleanupResultReadReceipt,
   createAgentHostedRetrievalRuntimeResourceRecoveryClaimReceipt,
+  createAgentHostedRetrievalRuntimeResourceRecoveryCandidate,
+  createAgentHostedRetrievalRuntimeResourceRecoveryPage,
   createAgentHostedRetrievalRuntimeResourceTerminalFenceDeriveReceipt,
   digestAgentCanonicalValue,
   type AgentHostedRetrievalRuntimeResourceCleanupReceipt,
   type AgentHostedRetrievalRuntimeResourceRecoveryClaimReceipt,
+  type AgentHostedRetrievalRuntimeResourceRecoveryScanRequest,
   type CanonicalDigest,
   type Instant,
 } from '@prodivix/ai';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createAgentHostedRetrievalRuntimeResourceExact4LifecycleFixture } from '../../../packages/ai/src/__tests__/agentHostedRetrievalRuntimeResourceFixtures';
 import {
   decodeAgentEvaluationFrozenRunConfig,
@@ -30,6 +33,7 @@ import {
   createAgentEvaluationHostedRetrievalRuntimeResourceSetId,
   createProductionAgentEvaluationHostedRetrievalRuntimeResourceCleanupOwner,
   createProductionAgentEvaluationHostedRetrievalRuntimeResourcePrepareOwner,
+  createProductionAgentEvaluationHostedRetrievalRuntimeResourceRecoveryOwner,
 } from './productionHostedRetrievalRuntimeResourceLifecycleOwner';
 
 const NOW = '2026-08-11T00:04:12.000Z' as Instant;
@@ -94,6 +98,104 @@ const providerCloseReceipt = () => {
 };
 
 describe('production hosted retrieval runtime resource lifecycle owner', () => {
+  it.each(['elapsed', 'aborted', 'early-wait'] as const)(
+    'enforces the recovery deletion deadline when %s',
+    async (completion) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(NOW));
+      try {
+        const candidate =
+          createAgentHostedRetrievalRuntimeResourceRecoveryCandidate({
+            namespaceId: 'namespace.recovery-fence',
+            repositoryCommit: COMMIT,
+            planDigest: digest('plan'),
+            frozenRunDigest: digest('run'),
+            runConfigArtifactBindingDigest: digest('binding'),
+            runtimeResourceSetId: 'resources.recovery-fence',
+            authorityDigest: digest('authority'),
+            resourceSetCommitmentDigest: digest('commitment'),
+            activeStateDigest: digest('active'),
+            readLeaseLedgerRootDigest: digest('leases'),
+            storedRunTerminalFenceDigest: digest('terminal'),
+            resourceExpiresAt: CLAIM_EXPIRES_AT,
+            eligibleAt: NOW,
+            disposition: 'run-terminal',
+          });
+        const deleteResource = vi.fn(async () => {
+          expect(Date.now()).toBeGreaterThanOrEqual(Date.parse(NOW) + 1_000);
+          throw new Error('deletion-reached-fence');
+        });
+        const owner =
+          createProductionAgentEvaluationHostedRetrievalRuntimeResourceRecoveryOwner(
+            {
+              namespaceId: 'namespace.recovery-fence',
+              cleanupOwnerInstanceId: 'owner.recovery-fence',
+              client: {
+                listRecoveryCandidates: async (
+                  request: AgentHostedRetrievalRuntimeResourceRecoveryScanRequest
+                ) =>
+                  createAgentHostedRetrievalRuntimeResourceRecoveryPage(
+                    request,
+                    {
+                      recoveryAuthorityIssuerId: 'authority.recovery-fence',
+                      recoveryAuthorityImplementationDigest:
+                        digest('implementation'),
+                      scanLedgerRevision: 1,
+                      candidates: [candidate],
+                      nextCursor: null,
+                      scannedAt: NOW,
+                    }
+                  ),
+                claimRecoveryCleanup: async () => ({
+                  cleanupRequest: {
+                    deletionNotBefore: new Date(
+                      Date.parse(NOW) + 1_000
+                    ).toISOString(),
+                  },
+                  claimExpiresAt: CLAIM_EXPIRES_AT,
+                  registrationResult: {
+                    authority: {
+                      auxiliaryResourceIds: [],
+                      providerResourceId: 'resource.primary',
+                    },
+                  },
+                }),
+                storeCleanupReceipt: async () => undefined,
+                readCleanupResult: async () => undefined,
+              } as never,
+              provider: { deleteResource } as never,
+              ...(completion === 'early-wait'
+                ? { wait: async () => undefined }
+                : {}),
+            }
+          );
+        const abort = new AbortController();
+        const pending = owner.recoverPage(null, abort.signal);
+        const rejected = expect(pending).rejects.toMatchObject(
+          completion === 'elapsed'
+            ? { message: 'deletion-reached-fence' }
+            : {
+                code:
+                  completion === 'aborted'
+                    ? 'G4_RUNNER_ABORTED'
+                    : 'G4_RUNNER_TRANSPORT_FAILED',
+              }
+        );
+        await vi.advanceTimersByTimeAsync(0);
+        expect(deleteResource).not.toHaveBeenCalled();
+        if (completion === 'aborted') abort.abort();
+        else if (completion === 'elapsed')
+          await vi.advanceTimersByTimeAsync(1_000);
+        await rejected;
+        expect(deleteResource).toHaveBeenCalledTimes(
+          completion === 'elapsed' ? 1 : 0
+        );
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
   it('stages each request before one idempotent Provider create and seals exact four results', async () => {
     const binding = productionBinding();
     const events: string[] = [];

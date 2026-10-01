@@ -1,7 +1,7 @@
 import './PdxTreeSelect.scss';
 import { type PdxComponent } from '@prodivix/shared';
 import { getDataAttributes } from '../foundation/component';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import type React from 'react';
 
 export interface PdxTreeSelectOption {
@@ -51,6 +51,8 @@ function PdxTreeSelect({
   dataAttributes = {},
 }: PdxTreeSelectProps) {
   const [internalValue, setInternalValue] = useState(defaultValue || '');
+  const generatedId = useId();
+  const controlId = `${id ?? generatedId}-input`;
 
   useEffect(() => {
     if (value !== undefined) {
@@ -87,11 +89,14 @@ function PdxTreeSelect({
     >
       {label && (
         <div className="PdxFieldHeader">
-          <label className="PdxFieldLabel">{label}</label>
+          <label className="PdxFieldLabel" htmlFor={controlId}>
+            {label}
+          </label>
         </div>
       )}
       {description && <div className="PdxFieldDescription">{description}</div>}
       <select
+        id={controlId}
         className="PdxTreeSelectControl"
         disabled={disabled}
         value={currentValue}

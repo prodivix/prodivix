@@ -78,6 +78,8 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	}
 	modules.Agent.Repository = backendagent.NewRepository(db)
 	modules.Agent.Handler = backendagent.NewHandler(modules.Agent.Repository)
+	modules.Agent.Handler.SetDraftGateway(backendagent.NewDraftGateway(cfg.AgentDraftProviders))
+	modules.Agent.Handler.SetRuntimeGateway(backendagent.NewRuntimeGateway(modules.Agent.Repository, cfg.AgentRuntimeTokenEnv))
 
 	modules.Project.Store = backendproject.NewProjectStore(db)
 	modules.GitHub.Store = backendgithub.NewStore(db)
@@ -188,6 +190,8 @@ func NewRuntimeModules(db *sql.DB, tokenTTL time.Duration, cfg backendconfig.Con
 	modules.Verification.Maintenance = backendverification.NewMaintenance(
 		modules.Verification.Service, verificationConfig,
 	)
+	modules.Agent.Handler.SetRuntimeVerification(modules.Verification.Service)
+	modules.Agent.Handler.SetRuntimeDriverAttemptGrants(modules.Verification.AttemptGrants)
 	return modules, nil
 }
 

@@ -79,6 +79,49 @@ const initialize = (overrides?: {
   });
 
 describe('YARA-X scanner runtime', () => {
+  it('holds one runtime concurrency budget across readiness refreshes', async () => {
+    let now = Date.now();
+    let release: (() => void) | undefined;
+    let started: (() => void) | undefined;
+    const running = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const baseRunner = createRunner();
+    const runCommand: YaraXCommandRunner = async (input) => {
+      if (input.args[0] !== '--version') {
+        const { readFile } = await import('node:fs/promises');
+        if ((await readFile(input.args.at(-1)!, 'utf8')) === 'pending') {
+          started!();
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+      }
+      return baseRunner(input);
+    };
+    const runtime = await initialize({
+      runCommand,
+      maximumConcurrentScans: 1,
+      now: () => now,
+    });
+    const snapshot = await runtime.acquire();
+    const contents = new TextEncoder().encode('pending');
+    const scan = snapshot.scanners[0]!.scan({
+      reference: createBinaryAssetBlobReference({
+        contents,
+        mediaType: 'application/octet-stream',
+      }),
+      contents,
+    });
+    await running;
+    now += 1_001;
+    await expect(runtime.acquire()).rejects.toMatchObject({
+      reason: 'replicas-exhausted',
+    });
+    release!();
+    await scan;
+    await expect(runtime.acquire()).resolves.toMatchObject({ generation: 1 });
+  });
   it('publishes an exact-rule generation and hides matching rule identities behind one finding code', async () => {
     const runCommand = createRunner();
     const runtime = await initialize({ runCommand });

@@ -141,6 +141,73 @@ integration('remote execution PostgreSQL integration', () => {
     await expect(repository.countActive('owner-1')).resolves.toBe(1);
   });
 
+  it('retains distinct cancellation identities while a running execution is already cancelling', async () => {
+    const store = createPostgresRemoteExecutionSnapshotStore(pool);
+    const repository = createPostgresRemoteExecutionRepository(pool);
+    await store.put('owner-1', snapshot, 1_000);
+    await repository.createOrGet({
+      ownerId: 'owner-1',
+      identityKey: 'cancel-identity',
+      request: request('cancel-request'),
+      snapshotId: snapshot.workspace.snapshotId,
+      snapshotDigest: snapshot.contentDigest,
+      provider,
+      executionId: 'cancel-execution',
+      createdAt: 1_000,
+      maximumActiveExecutions: 1,
+    });
+    await repository.claimNext({
+      workerId: 'worker',
+      providerId: provider.id,
+      leaseToken: 'lease',
+      now: 1_100,
+      leaseDurationMs: 1_000,
+    });
+    await repository.transition({
+      executionId: 'cancel-execution',
+      workerId: 'worker',
+      leaseToken: 'lease',
+      status: 'running',
+      now: 1_101,
+    });
+    await expect(
+      repository.cancel({
+        ownerId: 'owner-1',
+        executionId: 'cancel-execution',
+        cancellationId: 'cancel-a',
+        cancelledAt: 1_102,
+      })
+    ).resolves.toMatchObject({ kind: 'cancelled', result: 'accepted' });
+    const cursor = (await repository.get('cancel-execution'))!.record
+      .latestCursor;
+    await expect(
+      repository.cancel({
+        ownerId: 'owner-1',
+        executionId: 'cancel-execution',
+        cancellationId: 'cancel-b',
+        cancelledAt: 1_103,
+      })
+    ).resolves.toMatchObject({
+      kind: 'cancelled',
+      result: 'already-requested',
+    });
+    await expect(
+      repository.cancel({
+        ownerId: 'owner-1',
+        executionId: 'cancel-execution',
+        cancellationId: 'cancel-b',
+        cancelledAt: 1_104,
+      })
+    ).resolves.toMatchObject({
+      kind: 'cancelled',
+      result: 'already-requested',
+    });
+    expect(await repository.get('cancel-execution')).toMatchObject({
+      record: { status: 'cancelling', latestCursor: cursor },
+      cancellationIds: ['cancel-a', 'cancel-b'],
+    });
+  });
+
   it('stores opaque Terminal state with atomic revision CAS and bounded expiry lookup', async () => {
     const snapshots = createPostgresRemoteExecutionSnapshotStore(pool);
     const repository = createPostgresRemoteExecutionRepository(pool);

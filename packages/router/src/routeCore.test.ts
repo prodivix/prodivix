@@ -177,6 +177,39 @@ describe('routeCore', () => {
     ).toEqual({ kind: 'external', url: 'https://example.com' });
   });
 
+  it('preserves query and hash together on relative navigation', () => {
+    const context = resolveRouteRuntimeContext(manifest, {
+      currentPath: '/users',
+    });
+    expect(
+      resolveNavigateTarget(manifest, context, { to: '42?tab=info#heading' })
+    ).toMatchObject({
+      kind: 'internal',
+      runtimeContext: {
+        currentPath: '/users/42',
+        searchParams: { tab: 'info' },
+        hash: 'heading',
+      },
+    });
+  });
+
+  it('treats every decoded query name as an own key', () => {
+    const context = resolveRouteRuntimeContext(manifest, {
+      currentPath:
+        '/users?constructor=one&constructor=two&toString=three&__proto__=four',
+    });
+    expect(Object.entries(context.searchParams)).toEqual([
+      ['constructor', ['one', 'two']],
+      ['toString', 'three'],
+      ['__proto__', 'four'],
+    ]);
+    expect(JSON.parse(JSON.stringify(context.searchParams))).toEqual({
+      constructor: ['one', 'two'],
+      toString: 'three',
+      ['__proto__']: 'four',
+    });
+  });
+
   it('resolves default and named outlet bindings from a route chain', () => {
     const chain = [
       {

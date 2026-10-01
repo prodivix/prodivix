@@ -1,4 +1,32 @@
 {
+  "deployment": {
+    "title": "发布与构建",
+    "description": "将已保存的项目分享到社区，或导出独立应用并交给你的托管服务部署。",
+    "communityTitle": "社区发布",
+    "communityDescription": "将服务端已确认的 Workspace 发布为公开社区投影。尚未同步的本地编辑需先保存，再刷新此处的修订。",
+    "revision": "已保存的 Workspace 修订 {{workspaceRev}}，操作序号 {{opSeq}}",
+    "localOnly": "将本地项目保存到已认证的服务端 Workspace 后，才能发布到社区。",
+    "signIn": "登录后加载已保存的发布修订。",
+    "loading": "正在加载已保存的发布修订…",
+    "published": "已发布到社区",
+    "unpublished": "当前项目为私有项目",
+    "unavailable": "暂时无法发布。解决显示的错误后，请刷新。",
+    "readonly": "当前 Workspace 为只读；发布需要写入权限。",
+    "loadFailed": "无法加载已保存的发布修订。",
+    "publishFailed": "社区发布失败。请刷新已保存的修订后重试。",
+    "publishing": "正在发布…",
+    "republish": "发布此已保存修订",
+    "publish": "发布到社区",
+    "refresh": "刷新已保存修订",
+    "viewCommunity": "查看社区发布",
+    "standaloneTitle": "独立应用",
+    "exportDescription": "导出会依据所选 Workspace 修订生成可构建的 React/Vite 或 Vue/Vite 项目。",
+    "exportStep": "打开代码导出，选择目标框架并下载生成的项目压缩包。",
+    "buildStep": "解压项目、安装依赖并构建应用：",
+    "hostStep": "通过你的托管服务上传生成的 dist 目录，并配置 SPA 路由回退。",
+    "openExport": "打开代码导出",
+    "latestConfirmedHint": "发布服务端最新确认的 Workspace。请先保存尚未同步的编辑。"
+  },
   "execution": {
     "title": "运行",
     "expand": "展开运行控制台",
@@ -2410,7 +2438,8 @@
       "timelineName": "时间线名称",
       "timelineDuration": "时间线时长（ms）",
       "title": "绑定",
-      "addBinding": "添加绑定"
+      "addBinding": "添加绑定",
+      "remove": "删除绑定"
     },
     "inspector": {
       "timeline": {

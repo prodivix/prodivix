@@ -128,6 +128,7 @@ const requestControlRecord = (
     const socket = createConnection({ host: options.host, port: options.port });
     let response = Buffer.alloc(0);
     let settled = false;
+    const deadline = setTimeout(() => fail('timeout'), options.timeoutMs);
     const fail = (
       reason: ConstructorParameters<
         typeof BinaryAssetScannerUnavailableError
@@ -135,12 +136,14 @@ const requestControlRecord = (
     ): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       reject(new BinaryAssetScannerUnavailableError(reason));
     };
     const finish = (value: string): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       resolve(value);
     };

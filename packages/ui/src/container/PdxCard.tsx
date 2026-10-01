@@ -1,5 +1,9 @@
 import './PdxCard.scss';
-import { getDataAttributes, mergeClassNames } from '../foundation/component';
+import {
+  getDataAttributes,
+  isInteractiveDescendantEvent,
+  mergeClassNames,
+} from '../foundation/component';
 import { type PdxComponent } from '@prodivix/shared';
 import type React from 'react';
 
@@ -41,7 +45,14 @@ function PdxCard({
   );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!clickable || disabled || !onClick) return;
+    if (
+      !clickable ||
+      disabled ||
+      !onClick ||
+      event.defaultPrevented ||
+      event.target !== event.currentTarget
+    )
+      return;
     if (event.key === ' ') {
       event.preventDefault();
       return;
@@ -53,7 +64,15 @@ function PdxCard({
   };
 
   const handleKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!clickable || disabled || !onClick || event.key !== ' ') return;
+    if (
+      !clickable ||
+      disabled ||
+      !onClick ||
+      event.key !== ' ' ||
+      event.defaultPrevented ||
+      event.target !== event.currentTarget
+    )
+      return;
     event.preventDefault();
     event.currentTarget.click();
   };
@@ -63,7 +82,18 @@ function PdxCard({
       aria-disabled={clickable && disabled ? true : undefined}
       className={fullClassName}
       id={id}
-      onClick={disabled ? undefined : onClick}
+      onClick={
+        disabled
+          ? undefined
+          : (event) => {
+              if (
+                clickable &&
+                (event.defaultPrevented || isInteractiveDescendantEvent(event))
+              )
+                return;
+              onClick?.(event);
+            }
+      }
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
       role={clickable ? 'button' : undefined}

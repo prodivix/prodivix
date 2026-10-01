@@ -2,6 +2,7 @@ import {
   CURRENT_SEMANTIC_SCHEMA_VERSION,
   createCodeLanguageProviderRegistry,
   createSemanticSnapshotIdentity,
+  createSemanticProviderSetDigest,
   createSemanticWorkspaceRevisionsKey,
   type CodeArtifact,
   type CodeArtifactLanguage,
@@ -36,6 +37,7 @@ import {
   type WorkspaceCodeSlotRegistryCompositionResult,
   type WorkspaceSnapshot,
 } from '@prodivix/workspace';
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -141,7 +143,8 @@ export const createWorkspaceCodeLanguageEnvironment = (
   workspace: WorkspaceSnapshot
 ): WorkspaceCodeLanguageEnvironment => {
   const workspaceRevisions = captureWorkspaceSemanticRevisions(workspace);
-  const revisionKey = createSemanticWorkspaceRevisionsKey(workspaceRevisions);
+  const sourceText = canonicalJsonText(workspace);
+  const revisionKey = `${createSemanticWorkspaceRevisionsKey(workspaceRevisions)}:${sourceText}`;
   const cached = environmentByRevisionKey.get(revisionKey);
   if (cached) return cached;
 
@@ -154,23 +157,40 @@ export const createWorkspaceCodeLanguageEnvironment = (
       )
   );
   try {
-    const semanticProviders = Object.freeze([
-      createTypeScriptSemanticContributionProvider({
-        workspaceId: workspace.id,
-        workspaceRevisions,
-        artifacts,
-      }),
-      createCssSemanticContributionProvider({
-        workspaceId: workspace.id,
-        workspaceRevisions,
-        artifacts,
-      }),
-      createShaderSemanticContributionProvider({
-        workspaceId: workspace.id,
-        workspaceRevisions,
-        artifacts,
-      }),
+    const sourceDigest = createSemanticProviderSetDigest([
+      {
+        id: 'browser.workspace-source',
+        semanticVersion: '1',
+        configurationDigest: sourceText,
+      },
     ]);
+    const semanticProviders = Object.freeze(
+      [
+        createTypeScriptSemanticContributionProvider({
+          workspaceId: workspace.id,
+          workspaceRevisions,
+          artifacts,
+        }),
+        createCssSemanticContributionProvider({
+          workspaceId: workspace.id,
+          workspaceRevisions,
+          artifacts,
+        }),
+        createShaderSemanticContributionProvider({
+          workspaceId: workspace.id,
+          workspaceRevisions,
+          artifacts,
+        }),
+      ].map((provider): SemanticContributionProvider =>
+        Object.freeze({
+          ...provider,
+          descriptor: Object.freeze({
+            ...provider.descriptor,
+            configurationDigest: `${provider.descriptor.configurationDigest ?? ''}:${sourceDigest}`,
+          }),
+        })
+      )
+    );
     const semanticComposition = createWorkspaceSemanticIndexFromSnapshot(
       workspace,
       { additionalProviders: semanticProviders }

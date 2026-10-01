@@ -7,13 +7,17 @@ import {
   digestBehaviorControlProfile,
   digestBehaviorValue,
   type BehaviorScenarioProgram,
+  type BehaviorFixtureSet,
 } from '@prodivix/behavior';
 import {
   createDeterministicRuntimeProvider,
   createExecutableProjectSnapshot,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+  EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+  EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
   type ExecutionBuildBundle,
 } from '@prodivix/runtime-core';
-import type { Route } from 'playwright-core';
+import { chromium, type Route } from 'playwright-core';
 import {
   digestVerificationValue,
   type VerificationAbortSignal,
@@ -84,7 +88,26 @@ const buildFile = (path: string, contents: string) => {
   });
 };
 
-const createFixture = () => {
+const createFixture = (authenticated = false) => {
+  const fixtureSet: BehaviorFixtureSet = {
+    id: 'fixture-set:auth',
+    name: 'Canonical authenticated session',
+    fixtures: [
+      {
+        id: 'fixture:auth',
+        target: { kind: 'auth-session', resourceId: 'provider:auth' },
+        inputDigest: digestVerificationValue('auth-request'),
+        outcome: {
+          kind: 'result',
+          value: {
+            principalId: 'principal:owner',
+            permissionIds: ['workspace.owner'],
+          },
+        },
+      },
+    ],
+  };
+  const fixtureSetDigest = digestBehaviorValue(fixtureSet);
   const snapshot = createExecutableProjectSnapshot({
     workspace: Object.freeze({
       workspaceId: 'workspace-production-browser',
@@ -118,6 +141,20 @@ const createFixture = () => {
     }),
     publicBuildConfiguration: Object.freeze([]),
     cacheHints: Object.freeze({ dependencyInstall: 'isolated' as const }),
+    ...(authenticated
+      ? {
+          serverRuntimeMockProvision: {
+            format: 'prodivix.server-runtime-test-provision.v1' as const,
+            fixtureSetId: fixtureSet.id,
+            principal: {
+              providerId: 'provider:auth',
+              principalId: 'principal:owner',
+            },
+            permissions: [{ permissionId: 'workspace.owner', allowed: true }],
+            fixtures: [],
+          },
+        }
+      : {}),
     installCommand: Object.freeze({ command: 'pnpm', args: ['install'] }),
     previewCommand: Object.freeze({ command: 'pnpm', args: ['preview'] }),
     buildCommand: Object.freeze({ command: 'pnpm', args: ['build'] }),
@@ -133,7 +170,12 @@ const createFixture = () => {
     snapshotDigest: snapshot.contentDigest,
     target: snapshot.target,
     files: Object.freeze([
-      buildFile('assets/app.js', 'globalThis.__production = true;'),
+      buildFile(
+        'assets/app.js',
+        authenticated
+          ? `fetch(${JSON.stringify(EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH)}).then(response=>response.json()).then(session=>{document.body.textContent=session.principalId;});`
+          : 'globalThis.__production = true;'
+      ),
       buildFile(
         'index.html',
         '<!doctype html><script src="/assets/app.js"></script>'
@@ -152,7 +194,7 @@ const createFixture = () => {
     compilerDigest: digestVerificationValue('compiler'),
     registryDigest: digestVerificationValue('registry'),
     controlProfileDigest,
-    fixtureSetDigests: Object.freeze([]),
+    fixtureSetDigests: Object.freeze(authenticated ? [fixtureSetDigest] : []),
     baselineSetDigests: Object.freeze([]),
     requiredCapabilities: Object.freeze([]),
     capabilityManifest: Object.freeze([]),
@@ -194,6 +236,14 @@ const createFixture = () => {
       presetId: BEHAVIOR_DETERMINISTIC_CONTROL_PRESET.id,
       digest: controlProfileDigest,
     }),
+    ...(authenticated
+      ? {
+          fixtureSetRef: {
+            documentId: fixtureSet.id,
+            digest: fixtureSetDigest,
+          },
+        }
+      : {}),
     adapter: FIRST_PARTY_BROWSER_VERIFICATION_ADAPTER_REGISTRATION.identity,
     requirement: 'required',
     policyRuleIds: Object.freeze(['rule:production-browser']),
@@ -237,7 +287,37 @@ const createFixture = () => {
     dependencyCellIds: Object.freeze([]),
     inputDigest: digestVerificationValue('production-browser-cell-input'),
   });
-  return { snapshot, buildBundle, program, cell };
+  return {
+    snapshot,
+    buildBundle,
+    program,
+    cell,
+    ...(authenticated
+      ? {
+          controlProfile: BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
+          fixtureSets: [fixtureSet],
+          fixtureProjectionReceiptDigest: digestVerificationValue(
+            'actual-compiler-receipt-contract'
+          ),
+          authSessionFixtureBinding: {
+            format: EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_FORMAT,
+            version: EXECUTION_AUTH_SESSION_FIXTURE_RESPONSE_VERSION,
+            fixtureSetId: fixtureSet.id,
+            fixtureSetDigest,
+            fixtureId: 'fixture:auth',
+            resourceId: 'provider:auth',
+            inputDigest: digestVerificationValue('auth-request'),
+            outcomeDigest: digestBehaviorValue(fixtureSet.fixtures[0]!.outcome),
+            projectionDigest: digestVerificationValue(
+              'compiler-auth-projection'
+            ),
+            providerId: 'provider:auth',
+            principalId: 'principal:owner',
+            permissionIds: ['workspace.owner'],
+          },
+        }
+      : {}),
+  };
 };
 
 const listen = (server: Server): Promise<string> =>
@@ -387,9 +467,11 @@ const createRuntimeAuthorityInput =
 const createAuthority = async (input: {
   previewHost: ProductionBrowserPreviewHostPort;
   canaryScanner?: ProductionBrowserCanaryScannerPort;
+  runtimeAuthority?: ProductionChromiumRuntimeAuthorityInput;
 }) =>
   createProductionChromiumBrowserAuthority({
-    runtimeAuthority: await createRuntimeAuthorityInput(),
+    runtimeAuthority:
+      input.runtimeAuthority ?? (await createRuntimeAuthorityInput()),
     previewHost: input.previewHost,
     runtimeProvider: Object.freeze({
       providerId: 'prodivix.remote.production-browser-test',
@@ -418,6 +500,230 @@ const createAuthority = async (input: {
   });
 
 describe('production Chromium browser authority', () => {
+  it.skipIf(process.env.PRODIVIX_VERIFY_G3_V6_BROWSER_MATRIX?.trim() !== '1')(
+    'executes a saved Auth fixture through the public production lease and actual Chromium, then drains cleanly',
+    async () => {
+      const executablePath = chromium.executablePath();
+      const observed = await observePlaywrightBrowserImageAuthority({
+        engine: 'chromium',
+        executablePath,
+      });
+      const probe = await chromium.launch({ headless: true, executablePath });
+      const browserVersion = probe.version();
+      await probe.close();
+      const runtimeAuthority = {
+        ...(await createRuntimeAuthorityInput()),
+        executablePath,
+        browserImageAuthority: observed,
+        browserVersion,
+      };
+      const fixture = createFixture(true);
+      const host = createProductionBrowserLoopbackPreviewHost();
+      const preview = await host.reserve(
+        {
+          attemptId: 'attempt:real-canonical-auth',
+          generation: 1,
+          requestId: 'request:real-canonical-auth',
+          executionId: 'execution:real-canonical-auth',
+          snapshotDigest: fixture.snapshot.contentDigest,
+          buildBundleDigest: createProductionBrowserBuildBundleDigest(
+            fixture.buildBundle
+          ),
+          entryFilePath: 'index.html',
+          entryDigest: fixture.buildBundle.files[1]!.digest,
+          buildFileCount: fixture.buildBundle.files.length,
+        },
+        signal
+      );
+      const authority = await createAuthority({
+        previewHost: host,
+        runtimeAuthority,
+      });
+      const projectionAuthorityDigest = digestVerificationValue(
+        'real-canonical-auth-toolchain-contract'
+      );
+      const executableSnapshotReceipt =
+        createProductionBrowserExecutableSnapshotReceipt({
+          snapshot: fixture.snapshot,
+          sourceRef: 'workspace:real-canonical-auth',
+          compilerProjectionReceiptDigest: projectionAuthorityDigest,
+        });
+      const pool = new PlaywrightBrowserPool();
+      try {
+        const registration = await authority.register(
+          {
+            ...fixture,
+            attemptId: preview.attemptId,
+            generation: 1,
+            providerKind: 'remote',
+            runtimeAuthority: authority.runtimeAuthority,
+            remoteExecution: preview,
+            projectionAuthorityDigest,
+            executableSnapshotReceipt,
+          },
+          signal
+        );
+        const targetLease = await authority.targetLease.acquire(
+          {
+            cell: fixture.cell,
+            attemptId: preview.attemptId,
+            generation: 1,
+            executableSnapshotDigest: fixture.snapshot.contentDigest,
+            executableSnapshotArtifactDigest:
+              executableSnapshotReceipt.artifactDigest,
+            expectedBindingDigest: registration.lease.bindingDigest,
+          },
+          signal
+        );
+        const runtimeLease = await authority.runtimeControls.acquire(
+          {
+            cell: fixture.cell,
+            targetLease,
+            attemptId: preview.attemptId,
+            generation: 1,
+            providerKind: 'remote',
+            executableSnapshotDigest: fixture.snapshot.contentDigest,
+            expectedControlDigest: registration.appliedControlDigest,
+            expectedCapabilitySnapshotDigest:
+              registration.controlCapabilitySnapshotDigest,
+            expectedControlCapabilityIds: registration.controlCapabilityIds,
+          },
+          signal
+        );
+        const tool = await pool.acquire({
+          engine: 'chromium',
+          origin: registration.origin,
+          cell: fixture.cell,
+          runtimeIdentity: registration.runtimeIdentity,
+          providerKind: 'remote',
+          runtimeControlLease: runtimeLease,
+          launch: { headless: true, executablePath },
+        });
+        const attestation = await tool.finalizeRuntimeControls();
+        expect(attestation.application.network).toMatchObject({
+          fixtureRequestCount: 1,
+          fixtureDispatchCount: 1,
+          fixtureResponseCount: 1,
+          deniedRequestCount: 0,
+          activeRequestCount: 0,
+        });
+        expect(runtimeLease.liveWitness().fixtureDispatchCount).toBe(1);
+        runtimeLease.sealTerminal(attestation);
+        await expect(
+          runtimeLease.resolveRuntimeFixture!({
+            url: new URL(
+              EXECUTION_AUTH_SESSION_FIXTURE_ENDPOINT_PATH,
+              registration.origin
+            ).href,
+            method: 'GET',
+            invocationId: 'invocation:replayed',
+            attempt: 1,
+          })
+        ).rejects.toThrow('replayed');
+        await tool.close();
+        await expect(
+          authority.runtimeControls.release(runtimeLease, attestation, signal)
+        ).resolves.toEqual({
+          status: 'clean',
+          residualCanaryIds: [],
+          diagnosticCodes: [],
+        });
+        await expect(
+          authority.targetLease.release(targetLease, signal)
+        ).resolves.toMatchObject({ status: 'clean' });
+      } finally {
+        await pool.dispose();
+        await authority.drainAndDispose();
+        await host.drainAndDispose();
+      }
+    },
+    60000
+  );
+  it('binds saved Auth fixtures and scans their full canonical controls before issuing a lease', async () => {
+    const fixture = createFixture(true);
+    const host = createProductionBrowserLoopbackPreviewHost();
+    const preview = await host.reserve(
+      {
+        attemptId: 'attempt:canonical-auth',
+        generation: 1,
+        requestId: 'request:canonical-auth',
+        executionId: 'execution:canonical-auth',
+        snapshotDigest: fixture.snapshot.contentDigest,
+        buildBundleDigest: createProductionBrowserBuildBundleDigest(
+          fixture.buildBundle
+        ),
+        entryFilePath: 'index.html',
+        entryDigest: fixture.buildBundle.files[1]!.digest,
+        buildFileCount: fixture.buildBundle.files.length,
+      },
+      signal
+    );
+    const scanned: string[] = [];
+    const scanner: ProductionBrowserCanaryScannerPort = {
+      authorityDigest: scannerAuthorityDigest,
+      async scan(input) {
+        scanned.push(new TextDecoder().decode(input.contents));
+        return createProductionBrowserCanaryScanReceipt({
+          contents: input.contents,
+          scannerAuthorityDigest,
+        });
+      },
+    };
+    const authority = await createAuthority({
+      previewHost: host,
+      canaryScanner: scanner,
+    });
+    const projectionAuthorityDigest = digestVerificationValue(
+      'canonical-auth-toolchain'
+    );
+    const input = {
+      ...fixture,
+      attemptId: preview.attemptId,
+      generation: 1,
+      providerKind: 'remote' as const,
+      runtimeAuthority: authority.runtimeAuthority,
+      remoteExecution: preview,
+      projectionAuthorityDigest,
+      executableSnapshotReceipt:
+        createProductionBrowserExecutableSnapshotReceipt({
+          snapshot: fixture.snapshot,
+          sourceRef: 'workspace:canonical-auth',
+          compilerProjectionReceiptDigest: projectionAuthorityDigest,
+        }),
+    };
+    try {
+      await expect(
+        authority.register(
+          {
+            ...input,
+            authSessionFixtureBinding: {
+              ...fixture.authSessionFixtureBinding!,
+              principalId: 'principal:forged',
+            },
+          },
+          signal
+        )
+      ).rejects.toThrow('drifted');
+      expect(authority.snapshot().registered).toBe(0);
+      expect(scanned).toEqual([]);
+      const registered = await authority.register(input, signal);
+      expect(
+        scanned.some(
+          (source) =>
+            source.includes('fixture:auth') &&
+            source.includes('principal:owner') &&
+            source.includes('workspace.owner')
+        )
+      ).toBe(true);
+      expect(registered.appliedControlDigest).toMatch(/^sha256-[a-f0-9]{64}$/u);
+      await expect(registered.retire()).resolves.toMatchObject({
+        status: 'clean',
+      });
+    } finally {
+      await authority.drainAndDispose();
+      await host.drainAndDispose();
+    }
+  });
   it('fails closed when a required production owner is not injected', async () => {
     await expect(
       createProductionChromiumBrowserAuthority(

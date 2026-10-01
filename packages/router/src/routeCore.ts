@@ -171,7 +171,7 @@ const parseRouteLocation = (
   const beforeQuery =
     queryIndex >= 0 ? beforeHash.slice(0, queryIndex) : beforeHash;
   const query = queryIndex >= 0 ? beforeHash.slice(queryIndex + 1) : '';
-  const searchParams: Record<string, string | string[]> = {};
+  const searchParams: Record<string, string | string[]> = Object.create(null);
   query.split('&').forEach((entry) => {
     if (!entry) return;
     const separatorIndex = entry.indexOf('=');
@@ -1000,7 +1000,9 @@ const resolveRelativeRoutePath = (
     return `${normalizeRoutePath(currentPath)}${trimmed}`;
   }
   if (trimmed.startsWith('/')) return trimmed;
-  const [pathPart = '', suffix = ''] = trimmed.split(/(?=[?#])/, 2);
+  const suffixIndex = trimmed.search(/[?#]/);
+  const pathPart = suffixIndex < 0 ? trimmed : trimmed.slice(0, suffixIndex);
+  const suffix = suffixIndex < 0 ? '' : trimmed.slice(suffixIndex);
   const segments = splitPath(currentPath);
   pathPart
     .split('/')

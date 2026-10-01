@@ -239,6 +239,17 @@ func (repository *Repository) StoreVerificationPlanBinding(
 	authority PrincipalAuthority,
 	factBytes []byte,
 ) (VerificationPlanBindingRecord, bool, error) {
+	return repository.storeVerificationPlanBinding(ctx, authority, nil, factBytes)
+}
+
+func (repository *Repository) StoreRuntimeVerificationPlanBinding(ctx context.Context, authority PrincipalAuthority, guard RuntimeLeaseGuard, factBytes []byte) (VerificationPlanBindingRecord, bool, error) {
+	if guard.Clock == nil {
+		return VerificationPlanBindingRecord{}, false, ErrUnauthorized
+	}
+	return repository.storeVerificationPlanBinding(ctx, authority, &guard, factBytes)
+}
+
+func (repository *Repository) storeVerificationPlanBinding(ctx context.Context, authority PrincipalAuthority, guard *RuntimeLeaseGuard, factBytes []byte) (VerificationPlanBindingRecord, bool, error) {
 	if err := repository.available(); err != nil {
 		return VerificationPlanBindingRecord{}, false, err
 	}
@@ -275,11 +286,19 @@ func (repository *Repository) StoreVerificationPlanBinding(
 	if err != nil {
 		return VerificationPlanBindingRecord{}, false, err
 	}
+	if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, binding.RunID, guard, run); err != nil {
+		return VerificationPlanBindingRecord{}, false, err
+	}
 	workspaceRevision, ok := integerMember(binding.TargetRevision, "workspaceRev")
 	if !ok {
 		return VerificationPlanBindingRecord{}, false, ErrInvalid
 	}
 	for _, verificationRun := range binding.VerificationRuns {
+		if guard != nil {
+			if err := authorizeRuntimeVerificationLinkTx(ctx, tx, authority.WorkspaceID, binding.RunID, run.Generation, binding.MutationReceiptID, binding.TargetRevisionDigest, binding.ActualPlanDigest, workspaceRevision, verificationRun); err != nil {
+				return VerificationPlanBindingRecord{}, false, err
+			}
+		}
 		var verificationWorkspaceRevision int64
 		var verificationPlanDigest, verificationSurface string
 		var snapshotJSON []byte
@@ -324,6 +343,18 @@ FOR SHARE`, authority.WorkspaceID, binding.TaskID, binding.RunID).Scan(&exists);
 		} else if err != nil {
 			return VerificationPlanBindingRecord{}, false, err
 		}
+	}
+	if guard != nil {
+		counterexamples, err := runtimeRepairCounterexamplesTx(ctx, tx, authority.WorkspaceID, binding.TaskID)
+		if err != nil {
+			return VerificationPlanBindingRecord{}, false, err
+		}
+		if counterexamples != nil && stringMember(counterexamples, "regressionRequirementSetDigest") != binding.RegressionRequirementSetDigest {
+			return VerificationPlanBindingRecord{}, false, conflict("repair binding dropped the delegated regression requirement set")
+		}
+	}
+	if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, binding.RunID, guard, run); err != nil {
+		return VerificationPlanBindingRecord{}, false, err
 	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO agent_verification_plan_bindings (
 	workspace_id, binding_id, task_id, run_id, proposal_id, preview_id, decision_id,
@@ -388,6 +419,17 @@ func (repository *Repository) StoreVerificationClosureReceipt(
 	authority PrincipalAuthority,
 	factBytes []byte,
 ) (VerificationClosureReceiptRecord, bool, error) {
+	return repository.storeVerificationClosureReceipt(ctx, authority, nil, factBytes)
+}
+
+func (repository *Repository) StoreRuntimeVerificationClosureReceipt(ctx context.Context, authority PrincipalAuthority, guard RuntimeLeaseGuard, factBytes []byte) (VerificationClosureReceiptRecord, bool, error) {
+	if guard.Clock == nil {
+		return VerificationClosureReceiptRecord{}, false, ErrUnauthorized
+	}
+	return repository.storeVerificationClosureReceipt(ctx, authority, &guard, factBytes)
+}
+
+func (repository *Repository) storeVerificationClosureReceipt(ctx context.Context, authority PrincipalAuthority, guard *RuntimeLeaseGuard, factBytes []byte) (VerificationClosureReceiptRecord, bool, error) {
 	if err := repository.available(); err != nil {
 		return VerificationClosureReceiptRecord{}, false, err
 	}
@@ -408,6 +450,18 @@ func (repository *Repository) StoreVerificationClosureReceipt(
 	if authority.Kind != "service" || receipt.ProducerKind != authority.Kind || receipt.ProducerID != authority.PrincipalID {
 		return VerificationClosureReceiptRecord{}, false, ErrUnauthorized
 	}
+	if guard != nil {
+		run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, receipt.RunID)
+		if err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
+		if (run.Phase != "verifying" && run.Phase != "repairing") || run.CallbackAuthority != "active" {
+			return VerificationClosureReceiptRecord{}, false, ErrUnauthorized
+		}
+		if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, receipt.RunID, guard, run); err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
+	}
 	_, binding, err := loadVerificationPlanBindingTx(ctx, tx, authority.WorkspaceID, receipt.BindingID)
 	if err != nil {
 		return VerificationClosureReceiptRecord{}, false, err
@@ -424,6 +478,11 @@ func (repository *Repository) StoreVerificationClosureReceipt(
 	}
 	promotedEvidenceIDs := map[string]bool{}
 	for _, verificationRun := range receipt.VerificationRuns {
+		if guard != nil {
+			if err := authorizeRuntimeVerificationLinkTx(ctx, tx, authority.WorkspaceID, receipt.RunID, guard.Authority.Generation, binding.MutationReceiptID, receipt.TargetRevisionDigest, receipt.PlanDigest, workspaceRevision, verificationRun); err != nil {
+				return VerificationClosureReceiptRecord{}, false, err
+			}
+		}
 		var verificationWorkspaceRevision int64
 		var verificationPlanDigest, verificationSurface, closureDigest, closureVerdict, snapshotDigest string
 		var snapshotJSON []byte
@@ -475,6 +534,15 @@ FOR SHARE`, ref.EvidenceID).Scan(
 		if workspaceID != authority.WorkspaceID || evidenceRevision != workspaceRevision || planDigest != receipt.PlanDigest ||
 			manifestDigest != ref.ManifestDigest || outcome != ref.Outcome {
 			return VerificationClosureReceiptRecord{}, false, conflict("Closure receipt Evidence does not match the promoted immutable manifest")
+		}
+	}
+	if guard != nil {
+		run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, receipt.RunID)
+		if err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
+		}
+		if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, receipt.RunID, guard, run); err != nil {
+			return VerificationClosureReceiptRecord{}, false, err
 		}
 	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO agent_verification_closure_receipts (

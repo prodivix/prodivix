@@ -15,6 +15,7 @@ import {
   resolveTrackFallbackValue,
   serializeAnimationDefinition,
   withEditorState,
+  validateAnimationDefinition,
   type AnimationBinding,
   type AnimationComposition,
   type AnimationDefinition,
@@ -390,20 +391,20 @@ export const useAnimationEditorState = ({
     });
   }, []);
 
-  const deleteTimeline = useCallback((timelineId: string) => {
-    setAnimation((prev) => {
-      const nextTimelines = prev.timelines.filter(
+  const deleteTimeline = useCallback(
+    (timelineId: string) => {
+      const nextTimelines = animation.timelines.filter(
         (timeline) => timeline.id !== timelineId
       );
-      if (nextTimelines.length === prev.timelines.length) return prev;
-      const currentActive = prev['x-animationEditor']?.activeTimelineId;
+      if (nextTimelines.length === animation.timelines.length) return;
+      const currentActive = animation['x-animationEditor']?.activeTimelineId;
       const nextActive =
         currentActive === timelineId ? nextTimelines[0]?.id : currentActive;
-      return {
-        ...prev,
+      const next = {
+        ...animation,
         timelines: nextTimelines,
         'x-animationEditor': withEditorState(
-          prev['x-animationEditor'],
+          animation['x-animationEditor'],
           (nextState) => {
             if (nextActive) {
               nextState.activeTimelineId = nextActive;
@@ -413,8 +414,18 @@ export const useAnimationEditorState = ({
           }
         ),
       };
-    });
-  }, []);
+      const validation = validateAnimationDefinition(next);
+      if (!validation.valid) {
+        setPersistenceDiagnostic(
+          `Cannot remove this timeline. Remove or update its references first. ${validation.issues[0]?.message ?? ''}`
+        );
+        return;
+      }
+      setPersistenceDiagnostic(undefined);
+      setAnimation(next);
+    },
+    [animation]
+  );
 
   const updateActiveTimelineName = useCallback(
     (name: string) => {
@@ -656,28 +667,38 @@ export const useAnimationEditorState = ({
     );
   }, []);
 
-  const deleteComposition = useCallback((compositionId: string) => {
-    setAnimation((prev) => {
-      const compositions = prev.compositions.filter(
+  const deleteComposition = useCallback(
+    (compositionId: string) => {
+      const compositions = animation.compositions.filter(
         (composition) => composition.id !== compositionId
       );
-      if (compositions.length === prev.compositions.length) return prev;
-      if (prev.entryCompositionId === compositionId) {
-        const { entryCompositionId: _removed, ...withoutEntry } = prev;
-        return {
-          ...withoutEntry,
-          compositions,
-          ...(compositions[0]
-            ? { entryCompositionId: compositions[0].id }
-            : {}),
-        };
+      if (compositions.length === animation.compositions.length) return;
+      const { entryCompositionId: _removed, ...withoutEntry } = animation;
+      const next =
+        animation.entryCompositionId === compositionId
+          ? {
+              ...withoutEntry,
+              compositions,
+              ...(compositions[0]
+                ? { entryCompositionId: compositions[0].id }
+                : {}),
+            }
+          : {
+              ...animation,
+              compositions,
+            };
+      const validation = validateAnimationDefinition(next);
+      if (!validation.valid) {
+        setPersistenceDiagnostic(
+          `Cannot remove this composition. Remove or update its references first. ${validation.issues[0]?.message ?? ''}`
+        );
+        return;
       }
-      return {
-        ...prev,
-        compositions,
-      };
-    });
-  }, []);
+      setPersistenceDiagnostic(undefined);
+      setAnimation(next);
+    },
+    [animation]
+  );
 
   const [cursorDraftMs, setCursorDraftMs] = useState(() => {
     const initialCursor = animation['x-animationEditor']?.cursorMs;
@@ -797,19 +818,17 @@ export const useAnimationEditorState = ({
   const addBinding = useCallback((): string | null => {
     if (!activeTimeline) return null;
     const defaultTargetNodeId = nodeTargetOptions[0]?.id ?? 'root';
-    let createdId: string | null = null;
+    const nextBinding = createDefaultBinding({
+      idFactory: animationIdFactory,
+      targetNodeId: defaultTargetNodeId,
+    });
     updateActiveTimeline((timeline) => {
-      const nextBinding = createDefaultBinding({
-        idFactory: animationIdFactory,
-        targetNodeId: defaultTargetNodeId,
-      });
-      createdId = nextBinding.id;
       return {
         ...timeline,
         bindings: [...timeline.bindings, nextBinding],
       };
     });
-    return createdId;
+    return nextBinding.id;
   }, [activeTimeline, nodeTargetOptions, updateActiveTimeline]);
 
   const deleteBinding = useCallback(

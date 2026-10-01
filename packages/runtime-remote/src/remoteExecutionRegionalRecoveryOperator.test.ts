@@ -115,6 +115,76 @@ const clock = (...values: number[]): (() => number) => {
 };
 
 describe('remote execution regional recovery operator', () => {
+  it.each([false, true])(
+    'persists exact evidence before traffic commit and fails closed on persistence error=%s',
+    async (failPersistence) => {
+      let persisted:
+        RemoteExecutionRegionalRecoveryOperatorEvidence | undefined;
+      let committed = false;
+      const trafficAuthority = {
+        ...authority(),
+        async cutover(input, prepare) {
+          const prepared = await prepare();
+          expect(persisted?.evidenceDigest).toBe(prepared.checkpointDigest);
+          committed = true;
+          return {
+            kind: 'cutover' as const,
+            state: {
+              deploymentId: input.deploymentId,
+              activeRegionId: input.targetRegionId,
+              epoch: input.expectedEpoch + 1,
+              checkpointDigest: prepared.checkpointDigest,
+              updatedAt: input.cutoverAt,
+            },
+            result: prepared.result,
+          };
+        },
+      } satisfies RemoteExecutionRegionalTrafficAuthority;
+      const operator = createRemoteExecutionRegionalRecoveryOperator({
+        deploymentId: 'deployment-1',
+        sourceRegionId: 'region-a',
+        targetRegionId: 'region-b',
+        source: {
+          capture: async (id, at) =>
+            checkpoint('region-a', id, at, {
+              status: 'queued',
+              lease: undefined,
+            }),
+        },
+        target: {
+          capture: async (id, at) =>
+            checkpoint('region-b', id, at, {
+              status: 'queued',
+              lease: undefined,
+            }),
+        },
+        trafficAuthority,
+        authorization: authorized(),
+        maximumWorkerAttempts: 3,
+        maximumRequestAgeMs: 5_000,
+        maximumProofLifetimeMs: 5_000,
+        maximumAcceptedRpoMs: 1_000,
+        now: clock(2_000, 2_100),
+        persistPreparedEvidence: async (evidence) => {
+          if (failPersistence) throw new Error('disk write failed');
+          persisted = evidence;
+        },
+      });
+      const result = operator.execute(request(), {
+        authorizationGrant: Uint8Array.from([1, 2, 3]),
+      });
+      if (failPersistence) {
+        await expect(result).rejects.toMatchObject({
+          code: 'authority-unavailable',
+        });
+        expect(committed).toBe(false);
+      } else {
+        const completed = await result;
+        expect(completed).toMatchObject({ evidence: persisted });
+        expect(committed).toBe(true);
+      }
+    }
+  );
   it('cuts over a sorted exact batch once and exports only sanitized evidence', async () => {
     const cutoverStarted = vi.fn();
     const operator = createRemoteExecutionRegionalRecoveryOperator({

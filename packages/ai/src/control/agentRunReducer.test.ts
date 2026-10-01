@@ -34,6 +34,63 @@ const acceptedState = (result: AgentRunTransitionResult): AgentRunSnapshot => {
 };
 
 describe('AgentRun reducer and mode-specific success', () => {
+  it('requires the dedicated cancellation event and rejects new operation starts after fencing', () => {
+    const fixture = createStartedV4Run('explain', 'generic-cancel');
+    const generic = createAgentControlEvent(fixture.state, {
+      ...v4Command(
+        'event.generic.cancel',
+        'key.generic.cancel',
+        V4_TIME.cancel
+      ),
+      type: 'run.phase-changed',
+      data: { phase: 'cancelling' },
+    });
+    expect(reduceAgentRun(fixture.task, fixture.state, generic).accepted).toBe(
+      false
+    );
+    const cancelled = cancelAgentRun(fixture.task, fixture.state, {
+      ...v4Command(
+        'event.dedicated.cancel',
+        'key.dedicated.cancel',
+        V4_TIME.cancel
+      ),
+      reason: 'user-requested',
+    });
+    expect(cancelled.accepted).toBe(true);
+    if (!cancelled.accepted) return;
+    expect(cancelled.state.callbackAuthority).toBe('revoked');
+    for (const kind of ['model-stream', 'tool-execution'] as const)
+      expect(
+        startAgentRunOperation(fixture.task, cancelled.state, {
+          ...v4Command(
+            `event.after.${kind}`,
+            `key.after.${kind}`,
+            V4_TIME.cleanup
+          ),
+          operationId: `operation.${kind}`,
+          kind,
+          request: { purpose: 'test' },
+        }).accepted
+      ).toBe(false);
+  });
+
+  it('rejects imported events that rewind snapshot time while admitting equal timestamps', () => {
+    const fixture = createStartedV4Run('explain', 'time-monotonic');
+    const valid = createAgentControlEvent(fixture.state, {
+      ...v4Command('event.time', 'key.time', V4_TIME.running),
+      type: 'run.phase-changed',
+      data: { phase: 'awaiting-approval' },
+    });
+    expect(reduceAgentRun(fixture.task, fixture.state, valid).accepted).toBe(
+      true
+    );
+    const { eventDigest: _eventDigest, ...base } = valid;
+    const earlier = { ...base, occurredAt: V4_TIME.start };
+    const imported = { ...earlier, eventDigest: v4Digest(earlier) };
+    expect(reduceAgentRun(fixture.task, fixture.state, imported).accepted).toBe(
+      false
+    );
+  });
   it('requires the exact success proof for every immutable Task mode', () => {
     const plan = createStartedV4Run('plan', 'plan-success');
     const planResult = finalizeAgentRun(plan.task, plan.state, {

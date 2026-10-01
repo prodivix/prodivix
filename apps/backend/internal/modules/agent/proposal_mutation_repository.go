@@ -23,11 +23,15 @@ type WorkspaceMutationReceiptRecord struct {
 	CompletedAt   *time.Time
 }
 
-func (repository *Repository) RecordWorkspaceMutation(
-	ctx context.Context,
-	authority PrincipalAuthority,
-	factBytes []byte,
-) (WorkspaceMutationReceiptRecord, bool, error) {
+func (repository *Repository) RecordWorkspaceMutation(ctx context.Context, authority PrincipalAuthority, factBytes []byte) (WorkspaceMutationReceiptRecord, bool, error) {
+	return repository.recordWorkspaceMutation(ctx, authority, nil, factBytes)
+}
+
+func (repository *Repository) RecordRuntimeWorkspaceMutation(ctx context.Context, authority PrincipalAuthority, guard RuntimeLeaseGuard, factBytes []byte) (WorkspaceMutationReceiptRecord, bool, error) {
+	return repository.recordWorkspaceMutation(ctx, authority, &guard, factBytes)
+}
+
+func (repository *Repository) recordWorkspaceMutation(ctx context.Context, authority PrincipalAuthority, guard *RuntimeLeaseGuard, factBytes []byte) (WorkspaceMutationReceiptRecord, bool, error) {
 	if err := repository.available(); err != nil {
 		return WorkspaceMutationReceiptRecord{}, false, err
 	}
@@ -66,6 +70,9 @@ func (repository *Repository) RecordWorkspaceMutation(
 	}
 	run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, proposal.RunID)
 	if err != nil {
+		return WorkspaceMutationReceiptRecord{}, false, err
+	}
+	if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, receipt.RunID, guard, run); err != nil {
 		return WorkspaceMutationReceiptRecord{}, false, err
 	}
 	if task.Mode != "apply" || approval.Decision != "approved" ||

@@ -32,6 +32,9 @@ func (repository *Repository) PrepareAttestationChallenge(
 		return Promotion{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return Promotion{}, err
+	}
 	current, err := scanPromotion(tx.QueryRowContext(ctx, promotionSelect+`
 WHERE workspace_id = $1 AND id = $2 AND capability_hash = $3
 FOR UPDATE`, workspaceID, promotionID, capabilityHash))
@@ -58,6 +61,9 @@ FOR UPDATE`, workspaceID, promotionID, capabilityHash))
 			!bytes.Equal(current.StatementBytes, statementBytes) {
 			return Promotion{}, ErrConflict
 		}
+		if err := authorizeVerificationWrite(ctx, tx); err != nil {
+			return Promotion{}, err
+		}
 		if err := tx.Commit(); err != nil {
 			return Promotion{}, err
 		}
@@ -66,6 +72,9 @@ FOR UPDATE`, workspaceID, promotionID, capabilityHash))
 	if current.State != "staging" || !observedAt.Before(current.Deadline) ||
 		(current.Trust != TrustRemoteAttested && current.Trust != TrustCIAttested) {
 		return Promotion{}, ErrExpired
+	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return Promotion{}, err
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE verification_promotions
 SET state = 'verification-pending',
@@ -94,6 +103,9 @@ WHERE workspace_id = $1 AND id = $2 AND capability_hash = $3
 	current.StatementBytes = append([]byte(nil), statementBytes...)
 	current.StatementDigest = statementDigest
 	current.Version++
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return Promotion{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return Promotion{}, err
 	}

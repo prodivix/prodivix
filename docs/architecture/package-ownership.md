@@ -44,6 +44,14 @@ Prodivix 采用“Canonical documents + domain owners + revision-bound projectio
 
 ## 稳定依赖方向
 
+`apps/agent-runtime` 是普通 Node Agent worker 的 composition root：组合 `@prodivix/ai` 的
+admission、native provider/control/budget owner，`@prodivix/workspace` 的语义上下文、领域投影和 G3
+验证闭环，以及 `@prodivix/workspace-sync` 的 exact Durable Outbox/ACK reconciliation。它只通过
+server-only service transport 读取 Canonical Workspace、提交有显式 human approval 的原子
+Transaction、写入 generation/lease/CAS 保护的 Agent service facts；不拥有第二份作者态、domain
+contract、Browser credential store 或自报通过的 Evidence。`apps/agent-evaluation-runner` 继续负责
+release qualification 的独立评测和证据归档，普通 worker 不以评测私有 authority 替代生产授权。
+
 ```mermaid
 flowchart TD
     Web["apps/web"] --> UI["UI / React projections"]

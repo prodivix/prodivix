@@ -315,10 +315,26 @@ function Editor() {
         (value) => ({ ok: true as const, value }),
         (error: unknown) => ({ ok: false as const, error })
       );
-      const [cachedReplica, remoteWorkspace] = await Promise.all([
-        cachedReplicaPromise,
-        remoteWorkspacePromise,
-      ]);
+      const cachedReplica = await cachedReplicaPromise;
+      if (cancelled) return;
+      if (cachedReplica) {
+        setWorkspaceReadonly(false);
+        setProject({
+          id: cachedReplica.project.id,
+          name: cachedReplica.project.name,
+          description: cachedReplica.project.description,
+          type: cachedReplica.project.resourceType,
+          isPublic: cachedReplica.project.isPublic,
+          starsCount: cachedReplica.project.starsCount,
+        });
+        hydrateWorkspaceSettings(cachedReplica.settings);
+        setWorkspaceSnapshot(cachedReplica.workspace);
+        setWorkspaceCapabilities(
+          cachedReplica.project.id,
+          cachedReplica.capabilities
+        );
+      }
+      const remoteWorkspace = await remoteWorkspacePromise;
       if (cancelled) return;
 
       try {

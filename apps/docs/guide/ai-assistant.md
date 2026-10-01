@@ -52,14 +52,12 @@ opaque managed agent、任意 MCP、跨项目记忆和用 computer use点击编�
 
 ## 当前状态
 
-当前作者环境已提供稳定语义地址、引用图、Code Artifact、诊断目标、可逆写入链和 G3 Verification
-基础设施。G4 V0 已在本地完成 `@prodivix/ai` current/wire owner hard cut、`agent-policy` Workspace/Backend
-round-trip、plan-only draft boundary 与 diagnostics registry；durable CI evidence 仍待取得，V1–V9 尚未实现。
-ADR 65–69 已冻结控制平面、Provider capability/invocation、多模态、Hosted capability和
-真实模型统计评测，但完整 Agent 产品能力仍需按后续 Gate实现和验证。ordinary PR的 deterministic Gates与
-scheduled/release model evaluation是独立证据；后者要求三个独立 native Provider/model families的 required
-text/visual/document profiles、128 cases、protected holdout和至少11,640 journeys。LLM judge只能辅助，视觉
-主观质量另需 blind human rubric。单次 smoke、同协议换模型或 aggregator alias只证明 adapter可连接；文档、
-入口或 smoke存在都不等于生产 Agent已可用或 G4已通过。
+G0–G3 已通过各自阶段 Gate。G4 V0–V9 已实现，并取得绑定 exact commit 的 deterministic durable CI evidence；真实 Provider qualification 和 Global G4 Closure 仍为外部证据 Pending。当前状态以仓库的 `specs/roadmap/current-status.md` 为唯一来源。
+
+Blueprint 的草案入口支持明确标注的本地 Mock，以及服务器公开目录中的 provider/model。真实连接和凭据由服务器配置，浏览器只发送有预算上限的 data-only context 与 plan-only 请求；登录后没有可用 provider 时会显示配置提示。草案响应不携带 Command、写入权限或自动应用能力。Agent Task 的 proposal、审批和正式 Commit 则属于独立的控制平面链路。
+
+普通 Task 的「创建」动作先提交当前 Workspace、目标、意图和预算给服务端 admission。受信任的 runtime worker 检查当前策略、已配置的 provider qualification 与 grant，只能替换初始 grant 引用；Task 的其他不可变字段保持原样。Web 与 CLI 校验返回的 Task、策略、grant、challenge identity 和 canonical 摘要后，才提交正式 Task 创建。admission 等待超过上限、等待期间取消、策略拒绝或 qualification 缺失时会停止后续创建；界面会显示可操作提示与诊断码。已经提交给服务器的创建请求仍以服务端强幂等结果为准。admission 通过也不代替之后的 exact 人工审批。
+
+ordinary PR 的 deterministic Gates 与 scheduled/release model evaluation 是独立证据。真实评测要求三个独立 native Provider/model families 的 required text/visual/document profiles、128 cases、protected holdout，规范最低为 11,640 journeys，当前冻结 release plan 为 14,040 journeys。LLM judge 只能辅助，视觉主观质量另需 blind human rubric。单次 smoke、同协议换模型或 aggregator alias 只证明 adapter 可连接；入口、Mock 或 deterministic Golden 通过都不等于真实模型资格已通过。
 
 架构细节见[Semantic Authoring](/concepts/semantic-authoring)和[Change 与 Sync](/concepts/change-and-sync)。

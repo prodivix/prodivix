@@ -86,6 +86,9 @@ export const AnimationEditorContent = ({
     deleteComposition,
     setCursorMs,
     setZoom,
+    addBinding,
+    deleteBinding,
+    updateBindingTarget,
     addTrack,
     deleteTrack,
     updateTrackKind,
@@ -474,6 +477,10 @@ export const AnimationEditorContent = ({
         </div>
 
         <AnimationEditorInspectorPanel
+          nodeTargetOptions={nodeTargetOptions}
+          onAddBinding={addBinding}
+          onDeleteBinding={deleteBinding}
+          onUpdateBindingTarget={updateBindingTarget}
           timeline={activeTimelineForInspector}
           compositions={animation.compositions}
           entryCompositionId={animation.entryCompositionId}

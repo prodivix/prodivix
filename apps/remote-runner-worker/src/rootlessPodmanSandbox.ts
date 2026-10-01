@@ -1,6 +1,8 @@
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual, promisify } from 'node:util';
+import { StringDecoder } from 'node:string_decoder';
+import { createUtf8OutputCollector } from './utf8OutputCollector';
 import type {
   ExecutableProjectCommand,
   ExecutableProjectSnapshot,
@@ -220,26 +222,6 @@ export const createRootlessPodmanRunArguments = (
     '--workdir=/workspace',
     input.imageReference,
   ]);
-};
-
-type Output = {
-  stdout: string;
-  stderr: string;
-  usedBytes: number;
-  truncated: boolean;
-};
-
-const appendOutput = (
-  output: Output,
-  stream: 'stdout' | 'stderr',
-  chunk: Buffer,
-  maximumBytes: number
-): void => {
-  const remaining = Math.max(0, maximumBytes - output.usedBytes);
-  const accepted = chunk.subarray(0, remaining);
-  output[stream] += accepted.toString('utf8');
-  output.usedBytes += accepted.byteLength;
-  if (accepted.byteLength < chunk.byteLength) output.truncated = true;
 };
 
 export const createRootlessPodmanSandboxWirePayload = (
@@ -1423,17 +1405,12 @@ export const createRootlessPodmanSandbox = (
             }
           : {}),
       });
-      const output: Output = {
-        stdout: '',
-        stderr: '',
-        usedBytes: 0,
-        truncated: false,
-      };
       const maximumEnvelopeBytes = Math.ceil(
         limits.maximumArtifactBytes * (4 / 3) +
           input.maximumOutputBytes * (4 / 3) +
           1024 * 1024
       );
+      const output = createUtf8OutputCollector(maximumEnvelopeBytes);
       const installProxyLogWindowStartedAtMs = Date.now();
       const child = spawn(podmanCommand, [...args], {
         shell: false,
@@ -1522,12 +1499,15 @@ export const createRootlessPodmanSandbox = (
       };
       input.signal.addEventListener('abort', onAbort, { once: true });
       child.stdout.on('data', (chunk: Buffer) =>
-        appendOutput(output, 'stdout', chunk, maximumEnvelopeBytes)
+        output.append('stdout', chunk)
       );
       let controlBuffer = '';
+      const controlDecoder = new StringDecoder('utf8');
+      child.stdout.once('end', () => output.finish('stdout'));
+      child.stderr.once('end', () => output.finish('stderr'));
       child.stderr.on('data', (chunk: Buffer) => {
-        appendOutput(output, 'stderr', chunk, maximumEnvelopeBytes);
-        controlBuffer = `${controlBuffer}${chunk.toString('utf8')}`.slice(
+        output.append('stderr', chunk);
+        controlBuffer = `${controlBuffer}${controlDecoder.write(chunk)}`.slice(
           -Math.max(
             wirePayload.installCompleteMarker.length,
             wirePayload.captureReadyMarker.length

@@ -102,7 +102,13 @@ func (repository *Repository) claimArtifactPromotionLeasesOnce(
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return nil, err
+	}
 	leases := make([]ArtifactOperationLease, 0, len(ordered))
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return nil, err
+	}
 	for index, target := range ordered {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM verification_artifact_operation_leases
 WHERE locator = $1 AND mode = 'promotion' AND expires_at <= $2`,
@@ -150,6 +156,9 @@ WHERE locator = $1`, target.Locator).Scan(&currentMode)
 			WorkspaceID: target.WorkspaceID, Digest: target.Digest,
 			Locator: target.Locator, ExpiresAt: expiresAt,
 		})
+	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err

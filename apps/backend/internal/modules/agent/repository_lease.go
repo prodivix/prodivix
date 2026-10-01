@@ -40,6 +40,17 @@ func (repository *Repository) ClaimRun(
 	observedAt time.Time,
 	expiresAt time.Time,
 ) (RunLease, bool, error) {
+	return repository.claimRun(ctx, workspaceID, runID, leaseID, holderID, expectedGeneration, observedAt, expiresAt, nil)
+}
+
+func (repository *Repository) RuntimeClaimRun(ctx context.Context, workspaceID, runID, leaseID, holderID string, expectedGeneration int64, expiresAt time.Time, clock func() time.Time) (RunLease, bool, error) {
+	if clock == nil || expectedGeneration < 1 {
+		return RunLease{}, false, ErrUnauthorized
+	}
+	return repository.claimRun(ctx, workspaceID, runID, leaseID, holderID, expectedGeneration, clock(), expiresAt, clock)
+}
+
+func (repository *Repository) claimRun(ctx context.Context, workspaceID, runID, leaseID, holderID string, expectedGeneration int64, observedAt, expiresAt time.Time, clock func() time.Time) (RunLease, bool, error) {
 	if err := repository.available(); err != nil {
 		return RunLease{}, false, err
 	}
@@ -73,6 +84,28 @@ FOR UPDATE`, workspaceID, runID).Scan(
 	}
 	if err != nil {
 		return RunLease{}, false, err
+	}
+	if clock != nil {
+		observedAt = canonicalTime(clock())
+		if requiredRuntimeLeaseDuration(observedAt, expiresAt) != nil {
+			return RunLease{}, false, ErrInvalid
+		}
+		var callback string
+		if err := tx.QueryRowContext(ctx, `SELECT callback_authority FROM agent_runs WHERE workspace_id=$1 AND run_id=$2`, workspaceID, runID).Scan(&callback); err != nil {
+			return RunLease{}, false, err
+		}
+		if callback != "active" || phase == "queued" || phase == "cancelling" {
+			return RunLease{}, false, ErrUnauthorized
+		}
+		run, err := scanRunFactTx(ctx, tx, workspaceID, runID)
+		if err != nil {
+			return RunLease{}, false, err
+		}
+		if pending, err := hasPendingRuntimeCancellationTx(ctx, tx, workspaceID, run); err != nil {
+			return RunLease{}, false, err
+		} else if pending {
+			return RunLease{}, false, ErrUnauthorized
+		}
 	}
 	if phase == "terminal" {
 		return RunLease{}, false, ErrTerminal
@@ -148,6 +181,50 @@ WHERE workspace_id = $1 AND run_id = $2 AND lease_id = $3
 	}, nil
 }
 
+func requiredRuntimeLeaseDuration(start, end time.Time) error {
+	if requiredDuration(start, end) != nil || end.Sub(start) > 10*time.Minute {
+		return ErrInvalid
+	}
+	return nil
+}
+
+func (repository *Repository) RuntimeRenewRunLease(ctx context.Context, authority RunLeaseAuthority, workspaceID, runID string, expiresAt time.Time, clock func() time.Time) (RunLease, error) {
+	if err := repository.available(); err != nil {
+		return RunLease{}, err
+	}
+	if clock == nil || authority.Generation < 1 {
+		return RunLease{}, ErrUnauthorized
+	}
+	ctx, cancel := repositoryContext(ctx)
+	defer cancel()
+	tx, err := repository.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return RunLease{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	run, err := scanRunFactTx(ctx, tx, workspaceID, runID)
+	if err != nil {
+		return RunLease{}, err
+	}
+	if run.CallbackAuthority != "active" || run.Phase == "queued" || run.Phase == "cancelling" || run.Phase == "terminal" {
+		return RunLease{}, ErrUnauthorized
+	}
+	authority.ObservedAt, expiresAt = canonicalTime(clock()), canonicalTime(expiresAt)
+	if requiredRuntimeLeaseDuration(authority.ObservedAt, expiresAt) != nil {
+		return RunLease{}, ErrInvalid
+	}
+	if err := authorizeRuntimeLeaseTx(ctx, tx, workspaceID, runID, &RuntimeLeaseGuard{Authority: authority, Clock: clock}, run); err != nil {
+		return RunLease{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE agent_runs SET lease_expires_at=$3 WHERE workspace_id=$1 AND run_id=$2`, workspaceID, runID, expiresAt); err != nil {
+		return RunLease{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return RunLease{}, err
+	}
+	return RunLease{WorkspaceID: workspaceID, RunID: runID, LeaseID: authority.LeaseID, HolderID: authority.HolderID, Generation: authority.Generation, AcquiredAt: authority.ObservedAt, ExpiresAt: expiresAt}, nil
+}
+
 func (repository *Repository) ClaimOperationDispatch(
 	ctx context.Context,
 	workspaceID string,
@@ -159,6 +236,17 @@ func (repository *Repository) ClaimOperationDispatch(
 	observedAt time.Time,
 	expiresAt time.Time,
 ) (OperationDispatchClaim, error) {
+	return repository.claimOperationDispatch(ctx, workspaceID, runID, operationID, leaseID, holderID, generation, observedAt, expiresAt, nil)
+}
+
+func (repository *Repository) ClaimRuntimeOperationDispatch(ctx context.Context, workspaceID, runID, operationID, leaseID, holderID string, guard RuntimeLeaseGuard, expiresAt time.Time) (OperationDispatchClaim, error) {
+	if guard.Clock == nil {
+		return OperationDispatchClaim{}, ErrUnauthorized
+	}
+	return repository.claimOperationDispatch(ctx, workspaceID, runID, operationID, leaseID, holderID, guard.Authority.Generation, guard.Clock(), expiresAt, &guard)
+}
+
+func (repository *Repository) claimOperationDispatch(ctx context.Context, workspaceID, runID, operationID, leaseID, holderID string, generation int64, observedAt, expiresAt time.Time, guard *RuntimeLeaseGuard) (OperationDispatchClaim, error) {
 	if err := repository.available(); err != nil {
 		return OperationDispatchClaim{}, err
 	}
@@ -175,6 +263,23 @@ func (repository *Repository) ClaimOperationDispatch(
 		return OperationDispatchClaim{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Lock the Run before its operation, matching transition projection order.
+	if guard != nil {
+		run, err := scanRunFactTx(ctx, tx, workspaceID, runID)
+		if err != nil {
+			return OperationDispatchClaim{}, err
+		}
+		if run.CallbackAuthority != "active" || run.Phase == "cancelling" || run.Phase == "terminal" {
+			return OperationDispatchClaim{}, ErrUnauthorized
+		}
+		if err := authorizeRuntimeLeaseTx(ctx, tx, workspaceID, runID, guard, run); err != nil {
+			return OperationDispatchClaim{}, err
+		}
+		observedAt = canonicalTime(guard.Clock())
+		if requiredDuration(observedAt, expiresAt) != nil {
+			return OperationDispatchClaim{}, ErrInvalid
+		}
+	}
 	var runGeneration, operationGeneration int64
 	var phase, operationState, dispatchState string
 	var currentLease, currentHolder sql.NullString
@@ -193,6 +298,19 @@ FOR UPDATE OF r, o`, workspaceID, runID, operationID).Scan(
 	}
 	if err != nil {
 		return OperationDispatchClaim{}, err
+	}
+	if guard != nil {
+		run, err := scanRunFactTx(ctx, tx, workspaceID, runID)
+		if err != nil {
+			return OperationDispatchClaim{}, err
+		}
+		if err := authorizeRuntimeLeaseTx(ctx, tx, workspaceID, runID, guard, run); err != nil {
+			return OperationDispatchClaim{}, err
+		}
+		observedAt = canonicalTime(guard.Clock())
+		if requiredDuration(observedAt, expiresAt) != nil {
+			return OperationDispatchClaim{}, ErrInvalid
+		}
 	}
 	if phase == "terminal" || operationState != "started" ||
 		runGeneration != generation || operationGeneration != generation {
@@ -295,4 +413,66 @@ WHERE workspace_id = $1 AND run_id = $2 AND operation_id = $3`,
 		return true, nil
 	}
 	return false, ErrUnauthorized
+}
+
+func (repository *Repository) MarkRuntimeOperationDispatched(ctx context.Context, claim OperationDispatchClaim, guard RuntimeLeaseGuard) (bool, error) {
+	if err := repository.available(); err != nil {
+		return false, err
+	}
+	if guard.Clock == nil || claim.Generation != guard.Authority.Generation || claim.LeaseID == "" || claim.HolderID == "" {
+		return false, ErrUnauthorized
+	}
+	ctx, cancel := repositoryContext(ctx)
+	defer cancel()
+	tx, err := repository.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	run, err := scanRunFactTx(ctx, tx, claim.WorkspaceID, claim.RunID)
+	if err != nil {
+		return false, err
+	}
+	if run.CallbackAuthority != "active" || run.Phase == "cancelling" || run.Phase == "terminal" {
+		return false, ErrUnauthorized
+	}
+	if err := authorizeRuntimeLeaseTx(ctx, tx, claim.WorkspaceID, claim.RunID, &guard, run); err != nil {
+		return false, err
+	}
+	var state, operationState string
+	var generation int64
+	var leaseID, holderID sql.NullString
+	var expiresAt sql.NullTime
+	if err := tx.QueryRowContext(ctx, `SELECT dispatch_state, state, generation, dispatch_lease_id, dispatch_holder_id, dispatch_lease_expires_at
+FROM agent_run_operations WHERE workspace_id = $1 AND run_id = $2 AND operation_id = $3 FOR UPDATE`, claim.WorkspaceID, claim.RunID, claim.OperationID).Scan(&state, &operationState, &generation, &leaseID, &holderID, &expiresAt); errors.Is(err, sql.ErrNoRows) {
+		return false, ErrNotFound
+	} else if err != nil {
+		return false, err
+	}
+	if generation != claim.Generation || operationState != "started" {
+		return false, ErrUnauthorized
+	}
+	if state == "dispatched" {
+		if err := tx.Commit(); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	observedAt := canonicalTime(guard.Clock())
+	if state != "claimed" || !leaseID.Valid || !holderID.Valid || !expiresAt.Valid || leaseID.String != claim.LeaseID || holderID.String != claim.HolderID || !expiresAt.Time.After(observedAt) {
+		return false, ErrUnauthorized
+	}
+	// Refresh the Run lease after the operation lock too: neither lock wait may
+	// authorize a provider dispatch using a clock captured before acquisition.
+	if err := authorizeRuntimeLeaseTx(ctx, tx, claim.WorkspaceID, claim.RunID, &guard, run); err != nil {
+		return false, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE agent_run_operations SET dispatch_state = 'dispatched', dispatch_lease_id = NULL, dispatch_holder_id = NULL, dispatch_lease_expires_at = NULL
+WHERE workspace_id = $1 AND run_id = $2 AND operation_id = $3`, claim.WorkspaceID, claim.RunID, claim.OperationID); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return false, nil
 }

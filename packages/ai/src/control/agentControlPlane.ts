@@ -78,12 +78,16 @@ export const createAgentRunControl = (
   task: AgentTaskRecord,
   input: Readonly<{
     runId: string;
+    contextPackDigest?: string;
     command: AgentControlCommandIdentity;
   }>
 ): AgentRunTransitionResult => {
   const initial = createInitialAgentRunSnapshot(task, {
     runId: input.runId,
     createdAt: input.command.occurredAt,
+    ...(input.contextPackDigest
+      ? { contextPackDigest: input.contextPackDigest }
+      : {}),
   });
   return dispatch(task, initial, {
     ...input.command,
@@ -93,6 +97,9 @@ export const createAgentRunControl = (
       operation: 'create-run',
       taskDigest: task.taskDigest,
       runId: input.runId,
+      ...(input.contextPackDigest
+        ? { contextPackDigest: input.contextPackDigest }
+        : {}),
     }),
   });
 };
@@ -224,9 +231,29 @@ export const settleAgentRunOperation = (
     Readonly<{
       status: 'completed' | 'failed' | 'cancelled' | 'reconciliation-required';
       resultDigest?: string;
+      result?: unknown;
     }>
 ): AgentRunTransitionResult => {
   const pending = state.pendingOperation;
+  if (input.result !== undefined) {
+    try {
+      if (digestAgentCanonicalValue(input.result) !== input.resultDigest) {
+        return reject(
+          state,
+          'AI-9001',
+          '/result',
+          'Operation result does not bind its exact digest.'
+        );
+      }
+    } catch {
+      return reject(
+        state,
+        'AI-9001',
+        '/result',
+        'Operation result is not canonical JSON.'
+      );
+    }
+  }
   if (!pending || pending.state !== 'started') {
     return reject(
       state,
@@ -281,6 +308,7 @@ export const settleAgentRunOperation = (
     payload: Object.freeze({
       operationId: operation.operationId,
       operationDigest: operation.operationDigest,
+      ...(input.result === undefined ? {} : { result: input.result }),
     }),
     requestIdentity: Object.freeze({
       operation: 'settle-operation',

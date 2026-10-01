@@ -28,6 +28,7 @@ type taskFact struct {
 	PolicyDigest   string
 	InitialGrantID string
 	Spec           map[string]any
+	Lineage        map[string]any
 	CreatedAt      time.Time
 	Canonical      []byte
 }
@@ -133,6 +134,7 @@ func decodeTaskFact(source []byte) (taskFact, error) {
 		PolicyDigest:   stringMember(spec, "policyDigest"),
 		InitialGrantID: stringMember(grant, "grantId"),
 		Spec:           spec,
+		Lineage:        fact.Value["lineage"].(map[string]any),
 		CreatedAt:      createdAt,
 		Canonical:      fact.Canonical,
 	}, nil

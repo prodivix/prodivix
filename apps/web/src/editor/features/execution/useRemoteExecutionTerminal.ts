@@ -84,7 +84,7 @@ export const useRemoteExecutionTerminal = (input: {
   >(undefined);
   const inputQueueRef = useRef<QueuedTerminalInput[]>([]);
   const queuedInputBytesRef = useRef(0);
-  const drainingInputRef = useRef(false);
+  const drainingInputRef = useRef<number | undefined>(undefined);
   const lastSizeRef = useRef<
     Readonly<{ columns: number; rows: number }> | undefined
   >(undefined);
@@ -312,10 +312,14 @@ export const useRemoteExecutionTerminal = (input: {
   ]);
 
   const drainInputQueue = useCallback(async (): Promise<void> => {
-    if (drainingInputRef.current) return;
-    drainingInputRef.current = true;
+    const generation = sessionGenerationRef.current;
+    if (drainingInputRef.current === generation) return;
+    drainingInputRef.current = generation;
     try {
-      while (inputQueueRef.current.length) {
+      while (
+        generation === sessionGenerationRef.current &&
+        inputQueueRef.current.length
+      ) {
         const queued = inputQueueRef.current[0]!;
         const access = accessRef.current;
         const executionId = executionIdRef.current;
@@ -343,6 +347,7 @@ export const useRemoteExecutionTerminal = (input: {
             clientSequence,
           });
         } catch {
+          if (generation !== sessionGenerationRef.current) return;
           clearCredential();
           setView((current) => ({
             ...current,
@@ -351,6 +356,13 @@ export const useRemoteExecutionTerminal = (input: {
           }));
           return;
         }
+        if (
+          generation !== sessionGenerationRef.current ||
+          executionIdRef.current !== executionId ||
+          terminalSessionIdRef.current !== terminalSessionId ||
+          inputQueueRef.current[0] !== queued
+        )
+          return;
         if (result.status === 'accepted' || result.status === 'duplicate') {
           inputQueueRef.current.shift();
           queuedInputBytesRef.current -= queued.byteLength;
@@ -392,7 +404,8 @@ export const useRemoteExecutionTerminal = (input: {
         return;
       }
     } finally {
-      drainingInputRef.current = false;
+      if (drainingInputRef.current === generation)
+        drainingInputRef.current = undefined;
     }
   }, [clearCredential, input.client, rejectQueuedInputs]);
 
@@ -438,6 +451,7 @@ export const useRemoteExecutionTerminal = (input: {
       const access = accessRef.current;
       const executionId = executionIdRef.current;
       const terminalSessionId = terminalSessionIdRef.current;
+      const generation = sessionGenerationRef.current;
       const previous = lastSizeRef.current;
       if (
         !input.client ||
@@ -454,12 +468,19 @@ export const useRemoteExecutionTerminal = (input: {
           accessToken: access.token,
           size: { columns, rows },
         });
+        if (
+          generation !== sessionGenerationRef.current ||
+          executionIdRef.current !== executionId ||
+          terminalSessionIdRef.current !== terminalSessionId
+        )
+          return false;
         if (result.status !== 'accepted' && result.status !== 'unchanged')
           return false;
         lastSizeRef.current = result.size;
         setEmulator(emulatorController.resize(result.size));
         return true;
       } catch {
+        if (generation !== sessionGenerationRef.current) return false;
         clearCredential();
         setView((current) => ({
           ...current,
@@ -528,6 +549,7 @@ export const useRemoteExecutionTerminal = (input: {
 
   useEffect(
     () => () => {
+      sessionGenerationRef.current += 1;
       clearCredential();
       rejectQueuedInputs();
     },

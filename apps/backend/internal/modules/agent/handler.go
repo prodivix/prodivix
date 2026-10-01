@@ -11,6 +11,8 @@ import (
 	"time"
 
 	backendauth "github.com/Prodivix/prodivix/apps/backend/internal/modules/auth"
+	backendverification "github.com/Prodivix/prodivix/apps/backend/internal/modules/verification"
+	"github.com/Prodivix/prodivix/apps/backend/internal/platform/canonicaljson"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,10 +28,21 @@ type ProductRepository interface {
 
 type Handler struct {
 	repository ProductRepository
+	drafts     *DraftGateway
+	runtime    *RuntimeGateway
 }
 
 func NewHandler(repository ProductRepository) *Handler {
 	return &Handler{repository: repository}
+}
+
+func (handler *Handler) SetDraftGateway(gateway *DraftGateway)     { handler.drafts = gateway }
+func (handler *Handler) SetRuntimeGateway(gateway *RuntimeGateway) { handler.runtime = gateway }
+
+func (handler *Handler) SetRuntimeVerification(service *backendverification.Service) {
+	if handler.runtime != nil {
+		handler.runtime.verification = service
+	}
 }
 
 func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
@@ -37,6 +50,11 @@ func (handler *Handler) Routes(requireAuth gin.HandlerFunc) RouteHandlers {
 		RequireAuth: requireAuth, CreateTask: handler.HandleCreateTask,
 		DecideProposal: handler.HandleDecideProposal, StoreRunCommand: handler.HandleStoreRunCommand,
 		GetProduct: handler.HandleGetProduct, ExportAudit: handler.HandleExportAudit,
+		ListDraftProviders: handler.drafts.Catalog, GenerateDraft: handler.drafts.Generate,
+		Runtime: handler.runtime, FindTaskRun: handler.HandleFindTaskRun,
+		CreateAdmission: handler.HandleCreateAdmission, GetAdmission: handler.HandleGetAdmission,
+		ReadTaskOutputs:         handler.HandleReadTaskOutputs,
+		CreateRepairTaskRequest: handler.HandleCreateRepairTaskRequest,
 	}
 }
 
@@ -45,11 +63,41 @@ func (handler *Handler) HandleCreateTask(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if handler.runtime != nil && !handler.runtime.Ready() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": "AI-9001", "message": "The Agent runtime worker is unavailable. Restore the configured worker before creating a Task."})
+		return
+	}
 	source, ok := readAgentFact(c)
 	if !ok {
 		return
 	}
-	record, replayed, err := handler.repository.CreateTask(c.Request.Context(), authority, source)
+	var record TaskRecord
+	var replayed bool
+	var err error
+	if handler.runtime != nil {
+		if err := canonicaljson.ValidateRaw(source, maximumAgentProductRequestBytes); err != nil {
+			respondAgentError(c, ErrInvalid)
+			return
+		}
+		var input struct {
+			Task            json.RawMessage `json:"task"`
+			AdmissionID     string          `json:"admissionId"`
+			AdmissionDigest string          `json:"admissionDigest"`
+		}
+		decoder := json.NewDecoder(strings.NewReader(string(source)))
+		decoder.DisallowUnknownFields()
+		if decodeErr := decoder.Decode(&input); decodeErr != nil {
+			respondAgentError(c, ErrInvalid)
+			return
+		}
+		if decodeErr := decoder.Decode(new(any)); decodeErr != io.EOF {
+			respondAgentError(c, ErrInvalid)
+			return
+		}
+		record, replayed, err = handler.runtime.repository.CreateAdmittedTask(c.Request.Context(), authority, input.Task, input.AdmissionID, input.AdmissionDigest, handler.runtime.clock)
+	} else {
+		record, replayed, err = handler.repository.CreateTask(c.Request.Context(), authority, source)
+	}
 	if err != nil {
 		respondAgentError(c, err)
 		return

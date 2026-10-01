@@ -768,8 +768,7 @@ const latestBy = <T>(
 ): T | undefined => [...values].sort(compare).at(-1);
 
 const deriveActions = (
-  ledger: AgentProductLedger,
-  latestClosure: AgentProductLedger['verificationClosures'][number] | undefined
+  ledger: AgentProductLedger
 ): readonly AgentProductAction[] => {
   const actions: AgentProductAction[] = [];
   const run = ledger.run.run;
@@ -804,7 +803,20 @@ const deriveActions = (
     actions.push('recover');
   }
   if (
-    latestClosure?.verdict === 'unsatisfied' &&
+    ledger.task.spec.mode === 'apply' &&
+    run.phase === 'terminal' &&
+    run.outcome === 'failed' &&
+    ledger.actorAuthorized &&
+    ['clean', 'not-required'].includes(ledger.run.cleanupState) &&
+    ledger.verificationClosures.some(
+      (closure) =>
+        closure.verdict !== 'satisfied' &&
+        ledger.verificationBindings.some(
+          (binding) =>
+            binding.bindingId === closure.bindingId &&
+            binding.mutationKind === 'commit'
+        )
+    ) &&
     !ledger.repairRounds.some(
       (repair) => repair.state === 'blocked' && repair.round >= 1
     )
@@ -1053,7 +1065,7 @@ const viewBase = (ledger: AgentProductLedger) => {
     diagnostics: derivedDiagnostics(ledger, latestClosure),
     timeline,
     commands,
-    availableActions: deriveActions(ledger, latestClosure),
+    availableActions: deriveActions(ledger),
     ...(ledger.audit
       ? {
           audit: Object.freeze({

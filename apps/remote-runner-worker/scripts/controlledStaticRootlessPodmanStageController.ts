@@ -526,7 +526,7 @@ export const runControlledStaticRootlessPodmanStage = async (
   });
   const name = `prodivix-g3-v6-static-${input.stage}-${randomUUID().slice(0, 8)}`;
   const executionId = `g3-v6-${input.request.snapshotDigest.slice(7, 23)}-${input.stage}-${input.ordinal}`;
-  const args = createRootlessPodmanRunArguments({
+  const baseArgs = createRootlessPodmanRunArguments({
     name,
     imageReference: input.imageReference,
     uid: input.uid,
@@ -539,6 +539,16 @@ export const runControlledStaticRootlessPodmanStage = async (
     temporaryDirectoryMb: 1_024,
     executionId,
   });
+  const scope = process.env.PRODIVIX_CONTROLLED_STATIC_RESOURCE_SCOPE;
+  if (scope !== undefined && !/^[a-f0-9]{64}$/u.test(scope))
+    throw new TypeError('Controlled static resource scope is invalid.');
+  const args = scope
+    ? [
+        ...baseArgs.slice(0, -1),
+        `--label=prodivix.controlled-static-scope=${scope}`,
+        baseArgs.at(-1)!,
+      ]
+    : baseArgs;
   const startedAtEpochMs = Date.now();
   const child = spawn('podman', [...args], {
     env: input.environment,

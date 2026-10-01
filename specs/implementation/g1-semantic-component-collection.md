@@ -12,6 +12,17 @@
   - `specs/decisions/38.blueprint-component-instance-and-collection.md`
   - `specs/decisions/39.pir-current-evolution.md`
 
+## VS Code 只读集成（2026-10-01）
+
+`apps/vscode` 使用公开 `@prodivix/pir` current codec 和 PIR semantic contribution provider，按本地 editor revision
+投影 typed symbols 与实际 JSON source range；不持久化 Semantic Index 或创建第二作者态。预览命令现在打开真实
+Webview，展示已验证 PIR 层级、literal text、typed binding 和符号，并在文档变化后刷新 revision。
+
+该表面是明确标注的只读结构检查：禁用 Webview scripts、network 和 local resource，不求值 CodeSlot、动态 binding 或
+trigger，也不重新拥有 React Renderer 的物化语义。独立文件缺失外部 Component contract 时 fail closed，完整 Workspace
+视觉预览仍使用正式 Workspace/Renderer host。扩展注册、listener 清理、codec/symbol 和已打包 DAP 的本地测试已经替换
+占位成功脚本；真实 Extension Development Host GUI 证据为 Evidence pending。
+
 ## 目标
 
 G1 建立可验证的语义混合作者环境：Blueprint、NodeGraph、Animation、Code、Issues、

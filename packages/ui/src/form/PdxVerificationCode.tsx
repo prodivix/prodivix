@@ -17,6 +17,7 @@ interface PdxVerificationCodeSpecificProps {
   autoFocus?: boolean;
   masked?: boolean;
   separator?: string;
+  /** Partial codes preserve empty interior positions as spaces. */
   onChange?: (value: string) => void;
   onComplete?: (value: string) => void;
 }
@@ -54,13 +55,16 @@ function PdxVerificationCode({
   }, [value]);
 
   const currentValue = value !== undefined ? value : internalValue;
-  const characters = Array.from(
-    { length },
-    (_, index) => currentValue[index] || ''
+  const characters = Array.from({ length }, (_, index) =>
+    currentValue[index] === ' ' ? '' : currentValue[index] || ''
   );
 
   const updateValue = (nextChars: string[]) => {
-    const nextValue = nextChars.join('');
+    nextChars = nextChars.map((char) => (char === ' ' ? '' : char));
+    const nextValue = nextChars
+      .map((char) => char || ' ')
+      .join('')
+      .trimEnd();
     if (value === undefined) {
       setInternalValue(nextValue);
     }

@@ -6,6 +6,7 @@ import {
   digestWorkspaceAgentStableVerificationCell,
   evaluateWorkspaceAgentVerificationClosure,
   prepareWorkspaceAgentRepairRound,
+  retainsWorkspaceAgentRollbackVerificationPlan,
 } from '@prodivix/workspace-sync';
 import {
   createGoldenG4V5ApprovalContext,
@@ -18,6 +19,7 @@ import {
   GOLDEN_G4_V6_FAILED_CELL_ID,
   GOLDEN_G4_V6_FAILED_FLOW,
   GOLDEN_G4_V6_FAILURE_CONTEXT_PACK,
+  GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS,
   GOLDEN_G4_V6_PASSED_FLOW,
   GOLDEN_G4_V6_PRODUCER,
   GOLDEN_G4_V6_REPAIRED_FLOW,
@@ -123,6 +125,94 @@ describe('G4 V6 committed Verification, repair, and counterexample Golden', () =
       })
     ).toMatchObject({ status: 'blocked' });
   });
+
+  it.each(['commit', 'rollback'] as const)(
+    'rejects %s Plan body tampering that retains a previously approved digest',
+    (kind) => {
+      const flow =
+        kind === 'commit'
+          ? GOLDEN_G4_V6_PASSED_FLOW
+          : GOLDEN_G4_V6_ROLLBACK_FLOW;
+      const plan = flow.plan;
+      const cases = [
+        {
+          label: 'policy',
+          actual: { ...plan, policyDigest: plan.compilerDigest },
+        },
+        {
+          label: 'required-cell',
+          actual: {
+            ...plan,
+            cells: plan.cells.map((cell, index) =>
+              index === 0
+                ? {
+                    ...cell,
+                    retryPolicy: {
+                      ...cell.retryPolicy,
+                      maximumAttempts: cell.retryPolicy.maximumAttempts + 1,
+                    },
+                  }
+                : cell
+            ),
+          },
+        },
+        {
+          label: 'budget',
+          actual: {
+            ...plan,
+            budget: {
+              ...plan.budget,
+              artifactBytes: plan.budget.artifactBytes + 1,
+            },
+          },
+        },
+      ];
+      for (const { label, actual } of cases) {
+        expect(actual.planDigest).toBe(plan.planDigest);
+        expect(
+          createWorkspaceAgentVerificationPlanBinding({
+            projection: GOLDEN_G4_V5_PROJECTION,
+            approval: createGoldenG4V5ApprovalContext(),
+            mutationReceipt:
+              kind === 'commit'
+                ? GOLDEN_G4_V6_COMMIT_RECEIPT
+                : GOLDEN_G4_V6_ROLLBACK_ACKNOWLEDGED.receipt,
+            actualPlan: actual,
+            verificationRuns: flow.verificationRuns,
+            bindingId: `binding.golden.g4-v6.${kind}.${label}-tampered`,
+            producer: GOLDEN_G4_V6_PRODUCER,
+            boundAt: GOLDEN_G4_V6_TIME.verifying,
+          }),
+          label
+        ).toMatchObject({
+          status: 'blocked',
+          issues: [{ code: 'AI-7006', path: '/actualPlan' }],
+        });
+        if (kind === 'rollback')
+          expect(
+            retainsWorkspaceAgentRollbackVerificationPlan(
+              GOLDEN_G4_V5_PROJECTION.verificationPlan,
+              actual
+            ),
+            label
+          ).toBe(false);
+      }
+      expect(
+        retainsWorkspaceAgentRollbackVerificationPlan(
+          {
+            ...GOLDEN_G4_V5_PROJECTION.verificationPlan,
+            budget: {
+              ...GOLDEN_G4_V5_PROJECTION.verificationPlan.budget,
+              artifactBytes:
+                GOLDEN_G4_V5_PROJECTION.verificationPlan.budget.artifactBytes +
+                1,
+            },
+          },
+          GOLDEN_G4_V6_ROLLBACK_FLOW.plan
+        )
+      ).toBe(false);
+    }
+  );
 
   it('creates a fresh approval-bound repair Transaction and preserves the failed regression cell', () => {
     const failedCell = GOLDEN_G4_V6_FAILED_FLOW.plan.cells.find(
@@ -249,6 +339,8 @@ describe('G4 V6 committed Verification, repair, and counterexample Golden', () =
       failedPlan: GOLDEN_G4_V6_FAILED_FLOW.plan,
       failedEvidence: GOLDEN_G4_V6_FAILED_FLOW.evidence,
       failureContextPack: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK,
+      failureContextMaterials: GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS,
+      effectivePolicyDigest: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK.policyDigest,
       previousRepairReceipts: [GOLDEN_G4_V6_REPAIR_PREPARATION.receipt],
       receiptId: 'receipt.golden.g4-v6.repair.exhausted',
       repairRoundId: 'repair-round.golden.g4-v6.2',

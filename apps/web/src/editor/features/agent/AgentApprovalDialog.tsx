@@ -168,7 +168,7 @@ export function AgentApprovalDialog({
           <button
             type="submit"
             disabled={busy || !rollback}
-            className="rounded-lg bg-(--accent-primary) px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-(--accent-color) px-3 py-2 text-sm font-semibold text-(--text-inverse) disabled:opacity-50"
           >
             {busy
               ? 'Submitting exact decision…'

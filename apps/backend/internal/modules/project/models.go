@@ -12,6 +12,19 @@ var ErrInvalidResourceType = errors.New("invalid resource type")
 // ErrProjectNotPublishable marks a deterministic, permanent precondition: the
 // Workspace holds no PIR document the community projection could publish.
 var ErrProjectNotPublishable = errors.New("project has no publishable PIR document")
+var ErrPublicationRevisionConflict = errors.New("the saved workspace revision changed before publication")
+
+type PublicationExpectedDocument struct {
+	DocumentID string `json:"documentId"`
+	ContentRev int64  `json:"contentRev"`
+	MetaRev    int64  `json:"metaRev"`
+}
+type PublicationExpected struct {
+	WorkspaceRev int64                         `json:"workspaceRev"`
+	RouteRev     int64                         `json:"routeRev"`
+	OpSeq        int64                         `json:"opSeq"`
+	Documents    []PublicationExpectedDocument `json:"documents"`
+}
 
 type ResourceType string
 

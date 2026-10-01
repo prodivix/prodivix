@@ -41,6 +41,7 @@ export type WorkspaceAgentVerificationContext = Readonly<{
   digest: string;
   summary: AgentJsonValue;
   sourceTraceRef: string;
+  targetIds?: readonly string[];
   sensitivity?: AgentSensitivity;
 }>;
 
@@ -428,7 +429,9 @@ export const createWorkspaceVerificationAgentContextContributor = (
         .filter(
           (entry) =>
             scopeIncludesWorkspace(targetScope, snapshot.id) ||
-            targetScope.targets.some(({ id }) => id === entry.ref)
+            targetScope.targets.some(
+              ({ id }) => id === entry.ref || entry.targetIds?.includes(id)
+            )
         )
         .map((entry): AgentContextCandidate =>
           Object.freeze({

@@ -284,6 +284,13 @@ export const createMemoryRemoteExecutionRepository =
             execution: withCancellation,
           });
         }
+        if (execution.record.status === 'cancelling') {
+          return Object.freeze({
+            kind: 'cancelled',
+            result: 'already-requested',
+            execution: withCancellation,
+          });
+        }
         const cancelled = applyStatus(
           withCancellation,
           execution.record.status === 'queued' ? 'cancelled' : 'cancelling',

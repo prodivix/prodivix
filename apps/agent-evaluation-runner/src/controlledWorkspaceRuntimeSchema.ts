@@ -708,6 +708,7 @@ const compileNode = (
       schema.maxProperties,
       CONTROLLED_WORKSPACE_SCHEMA_LIMITS.maximumSchemaPropertiesPerObject
     );
+    if (Number.isNaN(minimum) || Number.isNaN(maximum)) return undefined;
     const minimumProperties = Math.max(minimum ?? 0, requiredProperties.length);
     const maximumProperties = Math.min(
       maximum ?? propertyEntries.length,

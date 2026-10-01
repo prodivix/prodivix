@@ -9,6 +9,8 @@ import {
   digestAgentCanonicalValue,
   executeAgentMediaTransformChain,
   materializeAgentMediaSourceDescriptor,
+  encodeAgentMediaFact,
+  decodeAgentMediaFact,
 } from '../index';
 import {
   V2_PDF,
@@ -22,6 +24,42 @@ import {
 } from '../__tests__/agentV2Fixtures';
 
 describe('G4 V2 deterministic media transformation', () => {
+  it.each([9, 10, 11, 16])(
+    'round-trips an ordered %i-step document transform lineage',
+    async (length) => {
+      const transformed = await executeAgentMediaTransformChain({
+        taskMode: 'plan',
+        profile: createV2RequiredProfiles().pdf,
+        source: createV2PdfSource(),
+        contents: V2_PDF,
+        steps: Array.from({ length }, () => ({
+          operation: 'page-select' as const,
+          parameters: { pages: [1, 2] },
+          transformer: createV2PdfTransformer(),
+        })),
+        scanner: createV2DocumentScanner(),
+      });
+      expect(transformed.status).toBe('ready');
+      if (transformed.status !== 'ready') return;
+      const fact = {
+        factType: 'media-representation' as const,
+        value: transformed.representation,
+      };
+      expect(decodeAgentMediaFact(encodeAgentMediaFact(fact))).toEqual({
+        ok: true,
+        value: fact,
+      });
+      expect(
+        transformed.representation.transformationReceiptRefs.map(
+          ({ transformationId }) => transformationId
+        )
+      ).toEqual(
+        transformed.transformationReceipts.map(
+          ({ transformationId }) => transformationId
+        )
+      );
+    }
+  );
   it('produces byte-stable source, receipts, representation, and usage', async () => {
     const source = createV2ScreenshotSource();
     const profile = createV2RequiredProfiles().screenshot;

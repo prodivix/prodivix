@@ -23,6 +23,47 @@ func (repository *Repository) AppendTransition(
 	nextRunFactBytes []byte,
 	eventFactBytes []byte,
 ) (RunRecord, bool, error) {
+	return repository.appendTransition(ctx, workspaceID, authority, nil, nil, nextRunFactBytes, eventFactBytes)
+}
+
+func (repository *Repository) AppendRuntimeTransition(ctx context.Context, workspaceID string, guard RuntimeLeaseGuard, nextRunFactBytes, eventFactBytes []byte) (RunRecord, bool, error) {
+	if guard.Clock == nil {
+		return RunRecord{}, false, ErrUnauthorized
+	}
+	return repository.appendTransition(ctx, workspaceID, guard.Authority, &guard, nil, nextRunFactBytes, eventFactBytes)
+}
+
+type runtimeBootstrapExpectation struct {
+	Cursor    int64
+	Digest    string
+	Kind      string
+	CommandID string
+}
+
+// BootstrapRuntimeRun admits the sole trusted, lease-free first attempt. All
+// later transitions require the generation-bound Run lease.
+func (repository *Repository) BootstrapRuntimeRun(ctx context.Context, workspaceID string, expectedCursor int64, expectedDigest string, nextRunFactBytes, eventFactBytes []byte) (RunRecord, bool, error) {
+	if expectedCursor != 1 || !canonicalDigestPattern.MatchString(expectedDigest) {
+		return RunRecord{}, false, ErrInvalid
+	}
+	return repository.appendTransition(ctx, workspaceID, RunLeaseAuthority{}, nil, &runtimeBootstrapExpectation{Cursor: expectedCursor, Digest: expectedDigest, Kind: "start"}, nextRunFactBytes, eventFactBytes)
+}
+
+func (repository *Repository) CancelRuntimeRun(ctx context.Context, workspaceID, runID, commandID string, expectedCursor int64, expectedDigest string, nextRunFactBytes, eventFactBytes []byte) (RunRecord, bool, error) {
+	if expectedCursor < 1 || commandID == "" || !canonicalDigestPattern.MatchString(expectedDigest) {
+		return RunRecord{}, false, ErrInvalid
+	}
+	next, err := decodeRunFact(nextRunFactBytes)
+	if err != nil {
+		return RunRecord{}, false, err
+	}
+	if next.RunID != runID {
+		return RunRecord{}, false, ErrUnauthorized
+	}
+	return repository.appendTransition(ctx, workspaceID, RunLeaseAuthority{}, nil, &runtimeBootstrapExpectation{Cursor: expectedCursor, Digest: expectedDigest, Kind: "cancel", CommandID: commandID}, nextRunFactBytes, eventFactBytes)
+}
+
+func (repository *Repository) appendTransition(ctx context.Context, workspaceID string, authority RunLeaseAuthority, guard *RuntimeLeaseGuard, bootstrap *runtimeBootstrapExpectation, nextRunFactBytes, eventFactBytes []byte) (RunRecord, bool, error) {
 	if err := repository.available(); err != nil {
 		return RunRecord{}, false, err
 	}
@@ -34,6 +75,24 @@ func (repository *Repository) AppendTransition(
 	if err != nil {
 		return RunRecord{}, false, err
 	}
+	if guard != nil || bootstrap != nil {
+		producer, ok := objectMember(event.Value, "producer")
+		if !ok || stringMember(producer, "kind") != "service" || stringMember(producer, "principalId") != RuntimePrincipalID {
+			return RunRecord{}, false, ErrUnauthorized
+		}
+	}
+	if bootstrap != nil && bootstrap.Kind == "start" && (event.Type != "run.started" || event.Generation != 1 || next.Generation != 1 || next.CallbackAuthority != "active" || next.Phase != "preparing") {
+		return RunRecord{}, false, ErrUnauthorized
+	}
+	if bootstrap != nil && bootstrap.Kind == "cancel" {
+		allowed := event.Type == "run.cancel-requested" || event.Type == "cleanup.acknowledged" || (event.Type == "run.terminal" && next.Outcome == "cancelled")
+		if !allowed || (next.Phase != "cancelling" && next.Phase != "terminal") || next.CallbackAuthority != "revoked" {
+			return RunRecord{}, false, ErrUnauthorized
+		}
+	}
+	if guard != nil && event.Type == "run.cancel-requested" {
+		return RunRecord{}, false, ErrUnauthorized
+	}
 	next.WorkspaceID = workspaceID
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
@@ -42,9 +101,45 @@ func (repository *Repository) AppendTransition(
 		return RunRecord{}, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if bootstrap != nil {
+		var id string
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM workspaces WHERE id=$1 FOR SHARE`, workspaceID).Scan(&id); errors.Is(err, sql.ErrNoRows) {
+			return RunRecord{}, false, ErrNotFound
+		} else if err != nil {
+			return RunRecord{}, false, err
+		}
+	}
 	current, err := scanRunFactTx(ctx, tx, workspaceID, next.RunID)
 	if err != nil {
 		return RunRecord{}, false, err
+	}
+	if bootstrap != nil && bootstrap.Kind == "cancel" {
+		var source []byte
+		if err := tx.QueryRowContext(ctx, `SELECT command_bytes FROM agent_run_user_commands WHERE workspace_id=$1 AND command_id=$2 FOR SHARE`, workspaceID, bootstrap.CommandID).Scan(&source); errors.Is(err, sql.ErrNoRows) {
+			return RunRecord{}, false, ErrUnauthorized
+		} else if err != nil {
+			return RunRecord{}, false, err
+		}
+		command, err := decodeRunUserCommand(source)
+		if err != nil {
+			return RunRecord{}, false, err
+		}
+		if command.Kind != "cancel" || command.RunID != current.RunID || command.TaskID != current.TaskID || command.ExpectedGeneration+1 != next.Generation || event.OccurredAt.Before(command.RequestedAt) {
+			return RunRecord{}, false, ErrUnauthorized
+		}
+		if event.Type == "run.cancel-requested" {
+			if command.ExpectedSnapshotDigest != bootstrap.Digest {
+				return RunRecord{}, false, ErrUnauthorized
+			}
+		} else {
+			var matches bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM agent_runtime_cancellations WHERE workspace_id=$1 AND run_id=$2 AND generation=$3 AND command_id=$4)`, workspaceID, current.RunID, next.Generation, command.CommandID).Scan(&matches); err != nil {
+				return RunRecord{}, false, err
+			}
+			if !matches {
+				return RunRecord{}, false, ErrUnauthorized
+			}
+		}
 	}
 	if replay, found, err := findEventReplayTx(
 		ctx, tx, workspaceID, next.RunID, event, next.Canonical, current.Canonical,
@@ -56,7 +151,27 @@ func (repository *Repository) AppendTransition(
 		}
 		return replay, true, nil
 	}
-	if err := authorizeRunLeaseTx(ctx, tx, workspaceID, next.RunID, authority, current); err != nil {
+	if bootstrap != nil {
+		if current.Cursor != bootstrap.Cursor || current.SnapshotDigest != bootstrap.Digest {
+			return RunRecord{}, false, ErrConflict
+		}
+		if bootstrap.Kind == "start" {
+			if current.Phase != "queued" || current.Generation != 0 || current.CallbackAuthority != "revoked" {
+				return RunRecord{}, false, ErrConflict
+			}
+			if pending, err := hasPendingRuntimeCancellationTx(ctx, tx, workspaceID, current); err != nil {
+				return RunRecord{}, false, err
+			} else if pending {
+				return RunRecord{}, false, ErrUnauthorized
+			}
+		} else if event.Type != "run.cancel-requested" && (current.Phase != "cancelling" || current.CallbackAuthority != "revoked") {
+			return RunRecord{}, false, ErrUnauthorized
+		}
+	} else if guard != nil {
+		if err := authorizeRuntimeLeaseTx(ctx, tx, workspaceID, next.RunID, guard, current); err != nil {
+			return RunRecord{}, false, err
+		}
+	} else if err := authorizeRunLeaseTx(ctx, tx, workspaceID, next.RunID, authority, current); err != nil {
 		return RunRecord{}, false, err
 	}
 	task, err := loadTaskTx(ctx, tx, workspaceID, current.TaskID)
@@ -71,15 +186,38 @@ func (repository *Repository) AppendTransition(
 			return RunRecord{}, false, err
 		}
 	}
+	if bootstrap != nil && bootstrap.Kind == "cancel" && event.Type == "cleanup.acknowledged" {
+		var pending bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM agent_runtime_verification_runs l
+JOIN verification_runs v ON v.workspace_id=l.workspace_id AND v.id=l.verification_run_id
+LEFT JOIN agent_runtime_g3_driver_jobs j ON j.workspace_id=l.workspace_id AND j.verification_run_id=l.verification_run_id
+WHERE l.workspace_id=$1 AND l.agent_run_id=$2 AND
+(v.status IN('queued','running','cancelling') OR (j.verification_run_id IS NOT NULL AND j.cleanup_receipt_bytes IS NULL)))`, workspaceID, current.RunID).Scan(&pending); err != nil {
+			return RunRecord{}, false, err
+		}
+		if pending {
+			return RunRecord{}, false, ErrUnauthorized
+		}
+	}
+	if guard != nil {
+		if err := authorizeRuntimeLeaseTx(ctx, tx, workspaceID, next.RunID, guard, current); err != nil {
+			return RunRecord{}, false, err
+		}
+	}
 	if err := insertEventTx(ctx, tx, workspaceID, event); err != nil {
 		return RunRecord{}, false, err
+	}
+	if bootstrap != nil && bootstrap.Kind == "cancel" && event.Type == "run.cancel-requested" {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_runtime_cancellations(workspace_id,run_id,generation,command_id,event_id,event_digest) VALUES($1,$2,$3,$4,$5,$6)`, workspaceID, current.RunID, next.Generation, bootstrap.CommandID, stringMember(event.Value, "eventId"), event.EventDigest); err != nil {
+			return RunRecord{}, false, err
+		}
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE agent_runs
 SET generation = $5::BIGINT, attempt = $6::BIGINT, phase = $7::TEXT, outcome = NULLIF($8::TEXT, ''),
 	cursor = $9, callback_authority = $10, cleanup_state = $11,
 	budget_revision = $12, latest_event_digest = NULLIF($13, ''),
 	snapshot_digest = $14, snapshot_json = $15::jsonb, snapshot_bytes = $16,
-	lease_generation = CASE WHEN $7::TEXT = 'terminal' THEN NULL ELSE $5::BIGINT END,
+	lease_generation = CASE WHEN $7::TEXT = 'terminal' OR lease_id IS NULL THEN NULL ELSE $5::BIGINT END,
 	lease_id = CASE WHEN $7::TEXT = 'terminal' THEN NULL ELSE lease_id END,
 	lease_holder_id = CASE WHEN $7::TEXT = 'terminal' THEN NULL ELSE lease_holder_id END,
 	lease_expires_at = CASE WHEN $7::TEXT = 'terminal' THEN NULL ELSE lease_expires_at END,
@@ -108,6 +246,12 @@ WHERE workspace_id = $1 AND run_id = $2 AND cursor = $3 AND snapshot_digest = $4
 		return RunRecord{}, false, err
 	}
 	return runRecord(next), false, nil
+}
+
+func hasPendingRuntimeCancellationTx(ctx context.Context, tx *sql.Tx, workspaceID string, run runFact) (bool, error) {
+	var pending bool
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM agent_run_user_commands WHERE workspace_id=$1 AND run_id=$2 AND kind='cancel' AND expected_generation=$3 AND expected_snapshot_digest=$4)`, workspaceID, run.RunID, run.Generation, run.SnapshotDigest).Scan(&pending)
+	return pending, err
 }
 
 func findEventReplayTx(
@@ -180,271 +324,6 @@ FROM agent_runs WHERE workspace_id = $1 AND run_id = $2`, workspaceID, runID).
 		leaseID.String != authority.LeaseID || holderID.String != authority.HolderID ||
 		leaseGeneration.Int64 != authority.Generation || !expiresAt.Time.After(observedAt) {
 		return ErrUnauthorized
-	}
-	return nil
-}
-
-func syncRunProjectionTx(ctx context.Context, tx *sql.Tx, run runFact) error {
-	if err := syncAttemptsTx(ctx, tx, run); err != nil {
-		return err
-	}
-	if err := syncPendingOperationTx(ctx, tx, run); err != nil {
-		return err
-	}
-	if err := fenceSupersededOperationDispatchTx(ctx, tx, run); err != nil {
-		return err
-	}
-	return syncBudgetReservationsTx(ctx, tx, run)
-}
-
-func fenceSupersededOperationDispatchTx(ctx context.Context, tx *sql.Tx, run runFact) error {
-	_, err := tx.ExecContext(ctx, `UPDATE agent_run_operations
-SET dispatch_state = 'reconciliation-required', dispatch_lease_id = NULL,
-	dispatch_holder_id = NULL, dispatch_lease_expires_at = NULL
-WHERE workspace_id = $1 AND run_id = $2 AND (generation < $3 OR $4 = 'terminal')
-	AND state = 'started'
-	AND dispatch_state IN ('ready', 'claimed', 'dispatched')`,
-		run.WorkspaceID, run.RunID, run.Generation, run.Phase,
-	)
-	return err
-}
-
-func syncAttemptsTx(ctx context.Context, tx *sql.Tx, run runFact) error {
-	attempts, ok := arrayMember(run.Value, "attempts")
-	if !ok {
-		return invalid("Run attempts are missing")
-	}
-	for _, raw := range attempts {
-		attempt, err := requireObject(raw, "attempt")
-		if err != nil {
-			return err
-		}
-		attemptNumber, ok := integerMember(attempt, "attempt")
-		if !ok {
-			return ErrInvalid
-		}
-		generation, ok := integerMember(attempt, "generation")
-		if !ok {
-			return ErrInvalid
-		}
-		startedAt, err := instantMember(attempt, "startedAt")
-		if err != nil {
-			return err
-		}
-		var completedAt any
-		if stringMember(attempt, "completedAt") != "" {
-			parsed, err := instantMember(attempt, "completedAt")
-			if err != nil {
-				return err
-			}
-			completedAt = parsed
-		}
-		attemptJSON, err := canonicalMember(attempt)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_run_attempts (
-		workspace_id, run_id, attempt, recorded_sequence, attempt_id, generation,
-		parent_attempt_id, reason, outcome, failure_digest, attempt_digest,
-		attempt_json, started_at, completed_at
-	) VALUES (
-		$1, $2, $3, $4, $5, $6,
-		NULLIF($7, ''), $8, NULLIF($9, ''), NULLIF($10, ''), $11,
-		$12::jsonb, $13, $14
-	) ON CONFLICT (workspace_id, run_id, attempt_digest) DO NOTHING`,
-			run.WorkspaceID, run.RunID, attemptNumber, run.Cursor,
-			stringMember(attempt, "attemptId"), generation,
-			stringMember(attempt, "parentAttemptId"), stringMember(attempt, "reason"),
-			stringMember(attempt, "outcome"), stringMember(attempt, "failureDigest"),
-			stringMember(attempt, "attemptDigest"), string(attemptJSON), startedAt,
-			completedAt,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func syncPendingOperationTx(ctx context.Context, tx *sql.Tx, run runFact) error {
-	operation, exists := objectMember(run.Value, "pendingOperation")
-	if !exists {
-		return nil
-	}
-	operationID := stringMember(operation, "operationId")
-	generation, ok := integerMember(operation, "generation")
-	if !ok {
-		return ErrInvalid
-	}
-	startedAt, err := instantMember(operation, "startedAt")
-	if err != nil {
-		return err
-	}
-	var settledAt any
-	if stringMember(operation, "settledAt") != "" {
-		parsed, err := instantMember(operation, "settledAt")
-		if err != nil {
-			return err
-		}
-		settledAt = parsed
-	}
-	var existing struct {
-		kind, key, request, state, callback, digest string
-		generation                                  int64
-	}
-	err = tx.QueryRowContext(ctx, `SELECT kind, idempotency_key, request_digest,
-	generation, state, callback_authority, operation_digest
-FROM agent_run_operations
-WHERE workspace_id = $1 AND run_id = $2 AND operation_id = $3
-FOR UPDATE`, run.WorkspaceID, run.RunID, operationID).Scan(
-		&existing.kind, &existing.key, &existing.request, &existing.generation,
-		&existing.state, &existing.callback, &existing.digest,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		_, err = tx.ExecContext(ctx, `INSERT INTO agent_run_operations (
-			workspace_id, run_id, operation_id, kind, idempotency_key,
-			request_digest, generation, state, callback_authority, dispatch_state,
-			result_digest, operation_digest, started_at, settled_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-			CASE $8 WHEN 'started' THEN 'ready' WHEN 'settled' THEN 'settled'
-				WHEN 'cancelled' THEN 'cancelled' ELSE 'reconciliation-required' END,
-			NULLIF($10, ''), $11, $12, $13)`,
-			run.WorkspaceID, run.RunID, operationID, stringMember(operation, "kind"),
-			stringMember(operation, "idempotencyKey"), stringMember(operation, "requestDigest"),
-			generation, stringMember(operation, "state"), stringMember(operation, "callbackAuthority"),
-			stringMember(operation, "resultDigest"), stringMember(operation, "operationDigest"),
-			startedAt, settledAt,
-		)
-		return err
-	}
-	if err != nil {
-		return err
-	}
-	if existing.kind != stringMember(operation, "kind") ||
-		existing.key != stringMember(operation, "idempotencyKey") ||
-		existing.request != stringMember(operation, "requestDigest") ||
-		existing.generation != generation {
-		return conflict("operation identity changed after it was recorded")
-	}
-	if existing.digest == stringMember(operation, "operationDigest") {
-		return nil
-	}
-	if existing.state != "started" || stringMember(operation, "state") == "started" {
-		return conflict("operation lifecycle was rewritten")
-	}
-	result, err := tx.ExecContext(ctx, `UPDATE agent_run_operations
-SET state = $4, callback_authority = $5,
-	dispatch_state = CASE $4 WHEN 'settled' THEN 'settled'
-		WHEN 'cancelled' THEN 'cancelled' ELSE 'reconciliation-required' END,
-	dispatch_lease_id = NULL, dispatch_holder_id = NULL,
-	dispatch_lease_expires_at = NULL, result_digest = NULLIF($6, ''),
-	operation_digest = $7, settled_at = $8
-WHERE workspace_id = $1 AND run_id = $2 AND operation_id = $3
-	AND state = 'started' AND operation_digest = $9`,
-		run.WorkspaceID, run.RunID, operationID,
-		stringMember(operation, "state"), stringMember(operation, "callbackAuthority"),
-		stringMember(operation, "resultDigest"), stringMember(operation, "operationDigest"),
-		settledAt, existing.digest,
-	)
-	if err != nil {
-		return err
-	}
-	rows, _ := result.RowsAffected()
-	if rows != 1 {
-		return ErrConflict
-	}
-	return nil
-}
-
-func syncBudgetReservationsTx(ctx context.Context, tx *sql.Tx, run runFact) error {
-	ledger, ok := objectMember(run.Value, "budgetLedger")
-	if !ok {
-		return ErrInvalid
-	}
-	reservations, ok := arrayMember(ledger, "reservations")
-	if !ok {
-		return ErrInvalid
-	}
-	for _, raw := range reservations {
-		reservation, err := requireObject(raw, "budget reservation")
-		if err != nil {
-			return err
-		}
-		demand, ok := objectMember(reservation, "demand")
-		if !ok {
-			return ErrInvalid
-		}
-		demandBytes, err := canonicalMember(demand)
-		if err != nil {
-			return err
-		}
-		reservedAt, err := instantMember(reservation, "reservedAt")
-		if err != nil {
-			return err
-		}
-		reservationID := stringMember(reservation, "reservationId")
-		var existingDemand, existingStatus string
-		var existingSettlement sql.NullString
-		err = tx.QueryRowContext(ctx, `SELECT demand_digest, status, settlement_digest
-FROM agent_budget_reservations
-WHERE workspace_id = $1 AND run_id = $2 AND reservation_id = $3
-FOR UPDATE`, run.WorkspaceID, run.RunID, reservationID).Scan(
-			&existingDemand, &existingStatus, &existingSettlement,
-		)
-		if errors.Is(err, sql.ErrNoRows) {
-			if stringMember(reservation, "status") == "settled" {
-				return conflict("budget reservation cannot appear already settled")
-			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO agent_budget_reservations (
-				workspace_id, run_id, reservation_id, demand_digest, demand_json,
-				status, reserved_at
-			) VALUES ($1, $2, $3, $4, $5::jsonb, 'reserved', $6)`,
-				run.WorkspaceID, run.RunID, reservationID,
-				stringMember(reservation, "demandDigest"), string(demandBytes), reservedAt,
-			); err != nil {
-				return err
-			}
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if existingDemand != stringMember(reservation, "demandDigest") {
-			return conflict("budget reservation demand drifted")
-		}
-		if stringMember(reservation, "status") == "reserved" {
-			if existingStatus != "reserved" {
-				return conflict("settled budget reservation cannot reopen")
-			}
-			continue
-		}
-		settlement, ok := objectMember(reservation, "settlement")
-		if !ok {
-			return ErrInvalid
-		}
-		settlementDigest := stringMember(settlement, "settlementDigest")
-		if existingStatus == "settled" {
-			if !existingSettlement.Valid || existingSettlement.String != settlementDigest {
-				return conflict("budget reservation settlement drifted")
-			}
-			continue
-		}
-		settledAt, err := instantMember(settlement, "settledAt")
-		if err != nil {
-			return err
-		}
-		settlementBytes, err := canonicalMember(settlement)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE agent_budget_reservations
-SET status = 'settled', settlement_digest = $4, settlement_json = $5::jsonb,
-	reconciliation_reason = NULLIF($6, ''), settled_at = $7
-WHERE workspace_id = $1 AND run_id = $2 AND reservation_id = $3 AND status = 'reserved'`,
-			run.WorkspaceID, run.RunID, reservationID, settlementDigest,
-			string(settlementBytes), stringMember(settlement, "reconciliationReason"), settledAt,
-		); err != nil {
-			return err
-		}
 	}
 	return nil
 }

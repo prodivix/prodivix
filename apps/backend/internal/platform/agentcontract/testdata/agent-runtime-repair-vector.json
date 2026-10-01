@@ -1,0 +1,968 @@
+{
+  "policy": {
+    "approvalRules": [
+      {
+        "capabilities": ["commit", "rollback"],
+        "decisionAuthority": "explicit-human",
+        "id": "approval.explicit-human",
+        "riskLevels": ["critical", "high", "low", "medium"],
+        "rollbackAuthorization": "none"
+      }
+    ],
+    "budgetCeiling": {
+      "costLimits": [],
+      "maxArtifactBytes": 1048576,
+      "maxElapsedMs": 3600000,
+      "maxModelInvocations": 2,
+      "maxRepairRounds": 1,
+      "maxToolCalls": 4,
+      "maxTransactions": 2,
+      "usageLimits": []
+    },
+    "capabilityRules": [],
+    "contextRules": {
+      "allowedAuthorities": ["canonical", "derived"],
+      "allowedItemKinds": [
+        "code-reference",
+        "semantic-symbol",
+        "source-trace",
+        "workspace-document"
+      ],
+      "externalInstructionBoundary": "data-only",
+      "maxBytes": 262144,
+      "maxItems": 256,
+      "maximumSensitivity": "internal",
+      "requireSourceTrace": true
+    },
+    "id": "policy.g4-v5.proposal-vector",
+    "modelRules": [],
+    "name": "Runtime repair integration policy",
+    "networkRules": [],
+    "privacy": {
+      "allowedRegions": [],
+      "maximumSensitivity": "internal",
+      "providerTelemetry": "deny",
+      "providerTraining": "deny",
+      "rawArtifactCapture": "deny"
+    },
+    "providerRules": [],
+    "retentionRules": {
+      "auditDays": 30,
+      "providerStateDays": 0,
+      "rawPrivateArtifactDays": 0,
+      "requireDeletionReceipt": true,
+      "sanitizedTraceDays": 7
+    },
+    "secretRules": [],
+    "verificationRules": {
+      "repair": "forbidden",
+      "requiredCheckKinds": [],
+      "requiredClosure": "satisfied",
+      "requiredModes": ["apply"],
+      "rollback": "forbidden"
+    },
+    "wireVersion": 1
+  },
+  "task": {
+    "wireVersion": 1,
+    "factType": "task-record",
+    "value": {
+      "lineage": { "reason": "initial" },
+      "spec": {
+        "actor": { "kind": "user", "principalId": "user.test" },
+        "baseRevision": {
+          "documents": [
+            { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+          ],
+          "opSeq": 144,
+          "routeRev": 8,
+          "workspaceRev": 42
+        },
+        "budget": {
+          "costLimits": [],
+          "maxArtifactBytes": 1048576,
+          "maxElapsedMs": 3600000,
+          "maxModelInvocations": 2,
+          "maxRepairRounds": 1,
+          "maxToolCalls": 4,
+          "maxTransactions": 2,
+          "usageLimits": []
+        },
+        "createdAt": "2026-08-01T08:30:00.000Z",
+        "idempotencyKey": "idempotency.g4-v5.proposal-vector.task",
+        "initialGrantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+        "intent": "Add one approved Catalog route through the V5 proposal flow.",
+        "intentDigest": "sha256-b2f1df37c281f91b6e166ba7d8f17ad38e7372ea8208e0c0cea7965e6f42e526",
+        "mode": "apply",
+        "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+        "policyRef": { "documentId": "policy.g4-v5.proposal-vector" },
+        "projectId": "project.catalog",
+        "targetScope": {
+          "targets": [{ "id": "workspace.catalog", "kind": "workspace" }]
+        },
+        "taskId": "task.g4-v5.proposal-vector",
+        "verificationRequirement": {
+          "policyRef": "verification.policy.catalog",
+          "requiredCheckKinds": ["browser-e2e", "unit"]
+        },
+        "workspaceId": "workspace.catalog"
+      },
+      "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+    }
+  },
+  "sequence": [
+    {
+      "name": "created",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "revoked",
+          "cleanupState": "not-required",
+          "cursor": 1,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            }
+          ],
+          "run": {
+            "attempt": 0,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 0,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+            "phase": "queued",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:01.000Z"
+          },
+          "snapshotDigest": "sha256-64286eb43e567e3bb77b53a3b5ca76899e38dd3515762f1e1ac073eeb415bec9",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": {},
+          "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+          "eventId": "event.g4-v5.vector.created",
+          "family": "run",
+          "generation": 0,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+          "occurredAt": "2026-08-01T08:30:01.000Z",
+          "payloadDigest": "sha256-106beceb0534cf800ff55af4b31f0c8e25cb6214f6f6fab6a18fac0ea4fb22a3",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": {
+            "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+          },
+          "sequence": 1,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.created"
+        }
+      }
+    },
+    {
+      "name": "started",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            }
+          ],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "active",
+          "cleanupState": "not-required",
+          "cursor": 2,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            },
+            {
+              "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+              "eventId": "event.g4-v5.vector.started",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+              "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+              "type": "run.started"
+            }
+          ],
+          "run": {
+            "attempt": 1,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+            "phase": "preparing",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:02.000Z"
+          },
+          "snapshotDigest": "sha256-3d5a3fcda05a34c48ab58f5469f28699c9f8e1460d074120cab4499e702ffbdd",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": {
+            "attempt": {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            },
+            "phase": "preparing"
+          },
+          "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+          "eventId": "event.g4-v5.vector.started",
+          "family": "run",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+          "occurredAt": "2026-08-01T08:30:02.000Z",
+          "payloadDigest": "sha256-10fbb6c154e972de0353a02835ad9f18815f099da09064bb8fb46c686a6e25d2",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "previousEventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": {
+            "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09"
+          },
+          "sequence": 2,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.started"
+        }
+      }
+    },
+    {
+      "name": "running",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            }
+          ],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "active",
+          "cleanupState": "not-required",
+          "cursor": 3,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            },
+            {
+              "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+              "eventId": "event.g4-v5.vector.started",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+              "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+              "type": "run.started"
+            },
+            {
+              "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+              "eventId": "event.g4-v5.vector.running",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+              "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+              "type": "run.phase-changed"
+            }
+          ],
+          "run": {
+            "attempt": 1,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+            "phase": "running",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:03.000Z"
+          },
+          "snapshotDigest": "sha256-0213aec702b174c0173dfb3bb2e235cbb1c6c4041aa3a4d59d781e3a87ac1124",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": { "phase": "running" },
+          "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+          "eventId": "event.g4-v5.vector.running",
+          "family": "run",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+          "occurredAt": "2026-08-01T08:30:03.000Z",
+          "payloadDigest": "sha256-087664ab235568004d7f1bd2e53e1a14b856a9360f6bb31b7b800afabad56099",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "previousEventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": { "phase": "running" },
+          "sequence": 3,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.phase-changed"
+        }
+      }
+    },
+    {
+      "name": "awaiting-approval",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            }
+          ],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "active",
+          "cleanupState": "not-required",
+          "cursor": 4,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            },
+            {
+              "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+              "eventId": "event.g4-v5.vector.started",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+              "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+              "type": "run.started"
+            },
+            {
+              "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+              "eventId": "event.g4-v5.vector.running",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+              "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+              "eventId": "event.g4-v5.vector.awaiting-approval",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+              "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+              "type": "run.phase-changed"
+            }
+          ],
+          "run": {
+            "attempt": 1,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+            "phase": "awaiting-approval",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:05.000Z"
+          },
+          "snapshotDigest": "sha256-4d91a3f6e8291ee350bc5a1cf8fec8fd8abd8cd7b188f4f9e87ad01eef24a5f1",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": { "phase": "awaiting-approval" },
+          "eventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+          "eventId": "event.g4-v5.vector.awaiting-approval",
+          "family": "run",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+          "occurredAt": "2026-08-01T08:30:05.000Z",
+          "payloadDigest": "sha256-2a47c8e749865422d1758103378463cf7386bccba6f0f87975d5cb313dbb31bf",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "previousEventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": { "phase": "awaiting-approval" },
+          "sequence": 4,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.phase-changed"
+        }
+      }
+    },
+    {
+      "name": "committing",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            }
+          ],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "active",
+          "cleanupState": "not-required",
+          "cursor": 5,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            },
+            {
+              "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+              "eventId": "event.g4-v5.vector.started",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+              "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+              "type": "run.started"
+            },
+            {
+              "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+              "eventId": "event.g4-v5.vector.running",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+              "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+              "eventId": "event.g4-v5.vector.awaiting-approval",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+              "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+              "eventId": "event.g4-v5.vector.committing",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+              "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+              "type": "run.phase-changed"
+            }
+          ],
+          "run": {
+            "attempt": 1,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+            "phase": "committing",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:07.000Z"
+          },
+          "snapshotDigest": "sha256-d2ac0b47e6858ca1cd5b83f94e142e4f19e1a9a894fe99bfdcdfc305481a16e5",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": { "phase": "committing" },
+          "eventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+          "eventId": "event.g4-v5.vector.committing",
+          "family": "run",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+          "occurredAt": "2026-08-01T08:30:07.000Z",
+          "payloadDigest": "sha256-d2f4a7cc183a9185c6481a8d5a93cd5d234222763751f06894a1efa4141e248a",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "previousEventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": { "phase": "committing" },
+          "sequence": 5,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.phase-changed"
+        }
+      }
+    },
+    {
+      "name": "verifying",
+      "run": {
+        "wireVersion": 1,
+        "factType": "run-snapshot",
+        "value": {
+          "attempts": [
+            {
+              "attempt": 1,
+              "attemptDigest": "sha256-16d2569c839dd4c205fbe819365ac5acb983fa27d19106545021ba53fd538e09",
+              "attemptId": "attempt.g4-v5.vector.1",
+              "generation": 1,
+              "reason": "initial",
+              "startedAt": "2026-08-01T08:30:02.000Z"
+            }
+          ],
+          "budgetLedger": {
+            "budget": {
+              "costLimits": [],
+              "maxArtifactBytes": 1048576,
+              "maxElapsedMs": 3600000,
+              "maxModelInvocations": 2,
+              "maxRepairRounds": 1,
+              "maxToolCalls": 4,
+              "maxTransactions": 2,
+              "usageLimits": []
+            },
+            "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+            "reservations": [],
+            "revision": 0
+          },
+          "callbackAuthority": "active",
+          "cleanupState": "not-required",
+          "cursor": 6,
+          "processedEvents": [
+            {
+              "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+              "eventId": "event.g4-v5.vector.created",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+              "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+              "type": "run.created"
+            },
+            {
+              "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+              "eventId": "event.g4-v5.vector.started",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+              "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+              "type": "run.started"
+            },
+            {
+              "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+              "eventId": "event.g4-v5.vector.running",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+              "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+              "eventId": "event.g4-v5.vector.awaiting-approval",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+              "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+              "eventId": "event.g4-v5.vector.committing",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+              "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+              "type": "run.phase-changed"
+            },
+            {
+              "eventDigest": "sha256-5d0ecf496bf6b72d12a13dfd9fe8443b82810ceb175cd485a725307cf7cf6a1b",
+              "eventId": "event.g4-v5.vector.verifying",
+              "idempotencyKey": "idempotency.event.g4-v5.vector.verifying",
+              "requestDigest": "sha256-762adc77d25e373ad9060487749ea1964ae879111a9a7b16e3c07dc8d48f4f83",
+              "type": "run.phase-changed"
+            }
+          ],
+          "run": {
+            "attempt": 1,
+            "baseRevision": {
+              "documents": [
+                { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+              ],
+              "opSeq": 144,
+              "routeRev": 8,
+              "workspaceRev": 42
+            },
+            "createdAt": "2026-08-01T08:30:01.000Z",
+            "generation": 1,
+            "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+            "latestEventDigest": "sha256-5d0ecf496bf6b72d12a13dfd9fe8443b82810ceb175cd485a725307cf7cf6a1b",
+            "phase": "verifying",
+            "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+            "runId": "run.g4-v5.proposal-vector",
+            "taskId": "task.g4-v5.proposal-vector",
+            "updatedAt": "2026-08-01T08:30:10.000Z"
+          },
+          "snapshotDigest": "sha256-04f448f932bf05e5d0c9a382400dd0164693d94ec69ca7fc02298525b006d309",
+          "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+        }
+      },
+      "event": {
+        "wireVersion": 1,
+        "factType": "run-event",
+        "value": {
+          "data": { "phase": "verifying" },
+          "eventDigest": "sha256-5d0ecf496bf6b72d12a13dfd9fe8443b82810ceb175cd485a725307cf7cf6a1b",
+          "eventId": "event.g4-v5.vector.verifying",
+          "family": "run",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "idempotencyKey": "idempotency.event.g4-v5.vector.verifying",
+          "occurredAt": "2026-08-01T08:30:10.000Z",
+          "payloadDigest": "sha256-4c1832242431f3aa0565729c799b4e50f23f6d081d0a741f7a1e3a94b6380448",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "previousEventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+          "producer": {
+            "kind": "service",
+            "principalId": "agent.coordinator.g4-v5"
+          },
+          "requestDigest": "sha256-762adc77d25e373ad9060487749ea1964ae879111a9a7b16e3c07dc8d48f4f83",
+          "runId": "run.g4-v5.proposal-vector",
+          "sanitizedPayload": { "phase": "verifying" },
+          "sequence": 6,
+          "taskId": "task.g4-v5.proposal-vector",
+          "type": "run.phase-changed"
+        }
+      }
+    }
+  ],
+  "terminal": {
+    "run": {
+      "wireVersion": 1,
+      "factType": "run-snapshot",
+      "value": {
+        "attempts": [
+          {
+            "attempt": 1,
+            "attemptDigest": "sha256-2e59b5d08227e1f85da6ea04294c71938a414692ba8ec8547f7a3d3edd3f5d66",
+            "attemptId": "attempt.g4-v5.vector.1",
+            "completedAt": "2026-08-01T09:00:00.300Z",
+            "failureDigest": "sha256-1fa0dc34e1a5928105c8bb724ba3ba1928c6cf522b38cf7c78ddfd343d80d10d",
+            "generation": 1,
+            "outcome": "failed",
+            "reason": "initial",
+            "startedAt": "2026-08-01T08:30:02.000Z"
+          }
+        ],
+        "budgetLedger": {
+          "budget": {
+            "costLimits": [],
+            "maxArtifactBytes": 1048576,
+            "maxElapsedMs": 3600000,
+            "maxModelInvocations": 2,
+            "maxRepairRounds": 1,
+            "maxToolCalls": 4,
+            "maxTransactions": 2,
+            "usageLimits": []
+          },
+          "ledgerDigest": "sha256-bd0c9ad1b942003b7655b1351b7414d1ed87903747ca5b21c612511d4ce58c98",
+          "reservations": [],
+          "revision": 0
+        },
+        "callbackAuthority": "revoked",
+        "cleanupState": "not-required",
+        "cursor": 7,
+        "processedEvents": [
+          {
+            "eventDigest": "sha256-829abcce216080ac5a0e21491faedfab0858725ff9a2c4f092af8c2a1655a16e",
+            "eventId": "event.g4-v5.vector.created",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.created",
+            "requestDigest": "sha256-5a950e9a25ed14fa76d68a7001048d49bf2384d10ec88fbf2cc2ab79328ef29b",
+            "type": "run.created"
+          },
+          {
+            "eventDigest": "sha256-f1be77aca2ee077d8505019b9d29022d7933e83e907c7b14aefdb386b5281c5b",
+            "eventId": "event.g4-v5.vector.started",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.started",
+            "requestDigest": "sha256-3dc5598762b1b153a6470380b4ddd62dc85c297c804b83ef0e3336928c23aba9",
+            "type": "run.started"
+          },
+          {
+            "eventDigest": "sha256-ceb9b73a235e6f8fb9e265e922b689a17f22f611fc4958dfa9a0c844c28f262a",
+            "eventId": "event.g4-v5.vector.running",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.running",
+            "requestDigest": "sha256-1ceff8f16609bf19983e1e105326a5d3e77c6a536a185c36310576ec82a8e500",
+            "type": "run.phase-changed"
+          },
+          {
+            "eventDigest": "sha256-b659d8a6434842710ed2069d5489e6a511a34fdacb1c0c8ae07223a061b7cd05",
+            "eventId": "event.g4-v5.vector.awaiting-approval",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.awaiting-approval",
+            "requestDigest": "sha256-0d8f3dd8b7591ee780263cfbe721f147953673f07fb84a4be77eb3d171d53cf9",
+            "type": "run.phase-changed"
+          },
+          {
+            "eventDigest": "sha256-708dbc34ff0fa4ef55981791fcdb75218129c6f8339350d87cc13d018a9d4e4c",
+            "eventId": "event.g4-v5.vector.committing",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.committing",
+            "requestDigest": "sha256-1f27e6f60ec5ce3bd057ea5734a3ff13322fe74300b8c31745a3afb6b9ea827f",
+            "type": "run.phase-changed"
+          },
+          {
+            "eventDigest": "sha256-5d0ecf496bf6b72d12a13dfd9fe8443b82810ceb175cd485a725307cf7cf6a1b",
+            "eventId": "event.g4-v5.vector.verifying",
+            "idempotencyKey": "idempotency.event.g4-v5.vector.verifying",
+            "requestDigest": "sha256-762adc77d25e373ad9060487749ea1964ae879111a9a7b16e3c07dc8d48f4f83",
+            "type": "run.phase-changed"
+          },
+          {
+            "eventDigest": "sha256-78977fca32a823b368a71d0d220c906798101dc4666605f4623c910c3ee598bc",
+            "eventId": "event.runtime.repair.failed",
+            "idempotencyKey": "event.runtime.repair.failed",
+            "requestDigest": "sha256-1fa0dc34e1a5928105c8bb724ba3ba1928c6cf522b38cf7c78ddfd343d80d10d",
+            "type": "run.terminal"
+          }
+        ],
+        "run": {
+          "attempt": 1,
+          "baseRevision": {
+            "documents": [
+              { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+            ],
+            "opSeq": 144,
+            "routeRev": 8,
+            "workspaceRev": 42
+          },
+          "createdAt": "2026-08-01T08:30:01.000Z",
+          "generation": 1,
+          "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+          "latestEventDigest": "sha256-78977fca32a823b368a71d0d220c906798101dc4666605f4623c910c3ee598bc",
+          "outcome": "failed",
+          "phase": "terminal",
+          "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+          "runId": "run.g4-v5.proposal-vector",
+          "taskId": "task.g4-v5.proposal-vector",
+          "updatedAt": "2026-08-01T09:00:00.300Z"
+        },
+        "snapshotDigest": "sha256-2989b86908889a30e64551e12cb5b22db0980419d0bbfc270d9887e6914150ef",
+        "taskDigest": "sha256-d3b40eab512d5b3491eb8eac120f109e4b3c0167c2b7f1ee74479274135c11d3"
+      }
+    },
+    "event": {
+      "wireVersion": 1,
+      "factType": "run-event",
+      "value": {
+        "data": { "outcome": "failed" },
+        "eventDigest": "sha256-78977fca32a823b368a71d0d220c906798101dc4666605f4623c910c3ee598bc",
+        "eventId": "event.runtime.repair.failed",
+        "family": "run",
+        "generation": 1,
+        "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+        "idempotencyKey": "event.runtime.repair.failed",
+        "occurredAt": "2026-08-01T09:00:00.300Z",
+        "payloadDigest": "sha256-39b5648838bf098e4e18c21d6babdf4ce21657c9968777ef79a249d1e2feee97",
+        "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+        "previousEventDigest": "sha256-5d0ecf496bf6b72d12a13dfd9fe8443b82810ceb175cd485a725307cf7cf6a1b",
+        "producer": {
+          "kind": "service",
+          "principalId": "agent.coordinator.g4-v5"
+        },
+        "requestDigest": "sha256-1fa0dc34e1a5928105c8bb724ba3ba1928c6cf522b38cf7c78ddfd343d80d10d",
+        "runId": "run.g4-v5.proposal-vector",
+        "sanitizedPayload": {
+          "diagnosticCode": null,
+          "outcome": "failed",
+          "proofDigest": null,
+          "receiptDigest": null
+        },
+        "sequence": 7,
+        "taskId": "task.g4-v5.proposal-vector",
+        "type": "run.terminal"
+      }
+    }
+  },
+  "approval": {
+    "wireVersion": 1,
+    "factType": "approval",
+    "value": {
+      "actor": { "kind": "user", "principalId": "user.test" },
+      "baseRevision": {
+        "documents": [
+          { "contentRev": 21, "documentId": "page.catalog", "metaRev": 3 }
+        ],
+        "opSeq": 144,
+        "routeRev": 8,
+        "workspaceRev": 42
+      },
+      "decidedAt": "2026-08-01T08:30:06.000Z",
+      "decision": "approved",
+      "decisionId": "decision.g4-v5.proposal-vector",
+      "expiresAt": "2026-08-01T09:30:00.000Z",
+      "grantRef": { "grantId": "grant.g4-v5.proposal-vector" },
+      "impactDigest": "sha256-08f1de309742ba28706c830ed4072d9d87ecfa4addb661b41a7c39fac6e5262d",
+      "policyDigest": "sha256-527dad45b5ab170f4f9a44ef76ba4d306e6c3d7940c7d7b9769a8408d31bfa88",
+      "previewDigest": "sha256-e7488767092edfe7f814b0b481de47e474aa6300ae5ff0d775b70dda7b62e2f0",
+      "previewId": "preview.g4-v5.proposal-vector",
+      "rollbackAuthorization": "on-unsatisfied-closure",
+      "runId": "run.g4-v5.proposal-vector",
+      "taskId": "task.g4-v5.proposal-vector",
+      "transactionDigest": "sha256-cbbffa715e50f558049f0146fdeb36bb07373d17246e3ae4f2b7ce6efe3a6c79",
+      "verificationPlanDigest": "sha256-83605ebf6ed4c68f554be58b5a40ef2350e65d6fed203d4dd3b925a370c63fa8"
+    }
+  }
+}

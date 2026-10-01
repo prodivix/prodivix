@@ -19,6 +19,16 @@
 
 ## 目标
 
+### 2026-10-01 Environment revision mode hard cut
+
+Backend v48 将 `mode` 固定到每个 `execution_environment_revisions` 行，新快照在同一事务内保存
+revision、mode、public bindings 与 Secret binding IDs。读取 exact 历史 revision 时只消费该行的 mode。
+旧 schema 只在 Environment 当前行保存 mode，因此迁移仅回填 `current_revision`；无法恢复的旧历史
+行保留未知 mode 并由读取边界拒绝，调用方必须重新发布完整快照取得可用的新 revision。
+新写入必须提供 `mock` 或 `live`，不得借用当前 Environment mode 伪造历史运行语义。
+
+本次本地测试和 v48 PostgreSQL migration Gate 属于修复验证；远端 Gate 证据等待显式提交推送。
+
 把当前已经冻结的 DataSourceDocument、DataOperationReference、PIR/Collection binding 与 lifecycle
 contract 落成可执行的数据应用纵切：用户声明或导入 operation，绑定 query/mutation，选择 mock 或
 live environment，在 Browser/Remote Preview 与 Test 中执行，并让 standalone Export 保持相同的

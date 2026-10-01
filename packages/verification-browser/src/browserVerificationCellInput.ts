@@ -369,6 +369,53 @@ const decodeProfile = (
   }
 };
 
+/** Decodes authored concrete policy material before dynamic attempt coordinates exist. */
+export const decodeBrowserVerificationCellProfile = (
+  value: unknown
+): BrowserVerificationCellProfile => {
+  const decoded = decodePrivateJson(value, 'Browser verification profile');
+  assertBrowserVerificationPlainData(decoded, '$');
+  if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded))
+    return fail('$.profile', 'Browser profile must be an object.');
+  const kind = strictEnum(
+    (decoded as Record<string, unknown>).kind,
+    '$.profile.kind',
+    PROFILE_CHECK_KINDS
+  );
+  return decodeProfile(decoded, kind);
+};
+
+export type AuthoredBrowserVerificationCellProfile =
+  | Exclude<BrowserVerificationCellProfile, BrowserSecurityCellProfile>
+  | Omit<BrowserSecurityCellProfile, 'observationSetDigest'>;
+/** Security observations are runtime facts and cannot be authored in Config. */
+export const decodeAuthoredBrowserVerificationCellProfile = (
+  value: unknown
+): AuthoredBrowserVerificationCellProfile => {
+  const decoded = decodePrivateJson(
+    value,
+    'Authored Browser verification profile'
+  );
+  assertBrowserVerificationPlainData(decoded, '$');
+  if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded))
+    return fail('$.profile', 'Browser profile must be an object.');
+  if ((decoded as Record<string, unknown>).kind !== 'security')
+    return decodeBrowserVerificationCellProfile(decoded);
+  const record = strictObject(decoded, '$.profile', [
+    'kind',
+    'profileDigest',
+    'policy',
+  ]);
+  const policy = record.policy as BrowserSecurityPolicyProfile;
+  const profileDigest = strictSha256Digest(
+    record.profileDigest,
+    '$.profile.profileDigest'
+  );
+  if (createBrowserSecurityPolicyDigest(policy) !== profileDigest)
+    return fail('$.profile.profileDigest', 'Security profile digest drifted.');
+  return Object.freeze({ kind: 'security', profileDigest, policy });
+};
+
 export const decodeBrowserVerificationCellInput = (
   source: string | Uint8Array | unknown
 ): BrowserVerificationCellInput => {

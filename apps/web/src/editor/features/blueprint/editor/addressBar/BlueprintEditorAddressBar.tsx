@@ -143,6 +143,7 @@ export function BlueprintEditorAddressBar({
     event: KeyboardEvent<HTMLDivElement>,
     route: RouteItem
   ) => {
+    if (event.defaultPrevented || event.target !== event.currentTarget) return;
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     handleSelectRoute(route);
@@ -168,6 +169,7 @@ export function BlueprintEditorAddressBar({
               key={route.id}
               role="button"
               tabIndex={0}
+              aria-label={route.path}
               data-testid={`address-route-item-${route.id}`}
               className={`group grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-md px-2 py-1.5 text-[11px] outline-none ${
                 isActive
@@ -301,6 +303,11 @@ export function BlueprintEditorAddressBar({
             className="AddressInput AddressCurrentInput"
             onValueChange={onCurrentPathChange}
             onKeyDown={(event) => {
+              if (
+                event.defaultPrevented ||
+                event.target !== event.currentTarget
+              )
+                return;
               if (event.key === 'Enter' && isCurrentPathUnmatched) {
                 handleCreateCurrentPath();
               }

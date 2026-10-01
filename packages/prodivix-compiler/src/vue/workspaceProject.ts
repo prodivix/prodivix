@@ -168,7 +168,7 @@ const operationManifestSource = (
   name: string;
 }>;
 
-export const prodivixDataOperations = ${JSON.stringify(operations, null, 2)} as const satisfies readonly ProdivixDataOperation[];
+export const prodivixDataOperations: readonly ProdivixDataOperation[] = ${JSON.stringify(operations, null, 2)} as const;
 
 export const prodivixDataOperationByKey = Object.freeze(
   Object.fromEntries(prodivixDataOperations.map((operation) => [operation.key, operation]))

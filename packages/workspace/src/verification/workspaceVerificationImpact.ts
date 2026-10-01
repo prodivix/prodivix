@@ -394,9 +394,12 @@ export const createWorkspaceVerificationImpactSet = (
     targetPartitionRevisions: workspaceVerificationPartitionRevisions(
       input.after
     ),
-    semanticSchemaDigest: afterComposition.index.snapshotIdentity.schemaVersion,
-    providerSetDigest:
-      afterComposition.index.snapshotIdentity.providerSetDigest,
+    semanticSchemaDigest: digestVerificationValue(
+      afterComposition.index.snapshotIdentity.schemaVersion
+    ),
+    providerSetDigest: digestVerificationValue(
+      afterComposition.index.snapshotIdentity.providerSetDigest
+    ),
     operationIds: input.operationIds,
     contributions: [
       coreContribution,

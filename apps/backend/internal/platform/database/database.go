@@ -635,7 +635,7 @@ func migrationSet() []migration {
 		agentEvaluationReviewLeaseMigration(), agentEvaluationEndpointSmokeMigration(),
 		agentEvaluationControlledAuthorityMigration(), agentEvaluationFinalizationMigration(),
 		agentEvaluationArchiveClosureMigration(), agentEvaluationFinalizationAuthorityMigration(),
-		agentEvaluationAttemptAuthorityMigration(), agentEvaluationHostedV6Migration(), passwordResetMigration()}
+		agentEvaluationAttemptAuthorityMigration(), agentEvaluationHostedV6Migration(), passwordResetMigration(), environmentRevisionModeMigration(), hostedLifecycleDeletionFenceMigration(), agentRuntimeVerificationLinkMigration(), agentRuntimeAdmissionMigration(), agentRuntimeG3DriverMigration(), agentTaskOutputMigration(), agentRuntimeRepairMigration()}
 }
 
 const migrationAdvisoryLockKey = int64(0x50726f6469766978)

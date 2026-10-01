@@ -85,6 +85,87 @@ const setup = (overrides: Partial<RouteLifecyclePorts> = {}) => {
 };
 
 describe('Route lifecycle coordinator', () => {
+  it.each(['incoming', 'outgoing'] as const)(
+    'cancels a pending sibling when %s preparation throws synchronously',
+    async (failedRole) => {
+      let failing = false;
+      const observedCancellation = vi.fn();
+      const commit = vi.fn();
+      const { coordinator } = setup({
+        scopes: {
+          prepare({ role, signal }) {
+            if (!failing)
+              return {
+                scopeId: role,
+                activate: vi.fn(),
+                restore: vi.fn(),
+                dispose: vi.fn(),
+              };
+            if (role === failedRole)
+              throw new Error('scope-preparation-failed');
+            return (async () => {
+              while (!signal.aborted) await Promise.resolve();
+              observedCancellation(signal.reason);
+              throw new Error('sibling-cancelled');
+            })();
+          },
+        },
+        outlet: { commit },
+      });
+      await coordinator.navigate({ path: '/catalog', kind: 'push' });
+      failing = true;
+      commit.mockClear();
+      await expect(
+        coordinator.navigate({ path: '/detail', kind: 'push' })
+      ).resolves.toMatchObject({
+        status: 'failed',
+        reasonCode: 'Error: scope-preparation-failed',
+      });
+      expect(observedCancellation).toHaveBeenCalledExactlyOnceWith(
+        'route-scope-preparation-failed'
+      );
+      expect(commit).not.toHaveBeenCalled();
+      expect(coordinator.snapshot().current?.path).toBe('/catalog');
+    }
+  );
+  it.each(['incoming', 'outgoing'] as const)(
+    'cleans up the other prepared lease when %s preparation fails',
+    async (failedRole) => {
+      const restore = vi.fn();
+      const dispose = vi.fn();
+      const commit = vi.fn();
+      let failing = false;
+      const { coordinator } = setup({
+        scopes: {
+          async prepare({ role }) {
+            if (failing && role === failedRole)
+              throw new Error('scope-preparation-failed');
+            await Promise.resolve();
+            return { scopeId: role, activate: vi.fn(), restore, dispose };
+          },
+        },
+        outlet: { commit },
+      });
+      await coordinator.navigate({ path: '/catalog', kind: 'push' });
+      failing = true;
+      commit.mockClear();
+      restore.mockClear();
+      dispose.mockClear();
+      await expect(
+        coordinator.navigate({ path: '/detail', kind: 'push' })
+      ).resolves.toMatchObject({
+        status: 'failed',
+        reasonCode: 'Error: scope-preparation-failed',
+      });
+      expect(commit).not.toHaveBeenCalled();
+      expect(
+        failedRole === 'incoming' ? restore : dispose
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        failedRole === 'incoming' ? dispose : restore
+      ).not.toHaveBeenCalled();
+    }
+  );
   it('waits for the semantic handoff before committing and materializes loader data', async () => {
     const { coordinator, order } = setup();
     const first = await coordinator.navigate({

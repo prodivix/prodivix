@@ -591,12 +591,46 @@ type CleanupExecutionDependencies = Readonly<{
   wait: (milliseconds: number, signal: AbortSignal) => Promise<void>;
 }>;
 
+const waitForCleanupDeadline = (
+  milliseconds: number,
+  signal: AbortSignal
+): Promise<void> =>
+  new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(
+        new AgentEvaluationRunnerError(
+          AGENT_EVALUATION_RUNNER_ERROR_CODES.aborted
+        )
+      );
+      return;
+    }
+    const timeout = setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, milliseconds);
+    const abort = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', abort);
+      reject(
+        new AgentEvaluationRunnerError(
+          AGENT_EVALUATION_RUNNER_ERROR_CODES.aborted
+        )
+      );
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
+
 const waitForDeletionFence = async (
   claimReceipt: AgentHostedRetrievalRuntimeResourceRecoveryClaimReceipt,
   dependencies: CleanupExecutionDependencies,
   signal: AbortSignal
 ): Promise<void> => {
   const now = instant(dependencies.clock);
+  if (
+    signal.aborted ||
+    Date.parse(now) >= Date.parse(claimReceipt.claimExpiresAt)
+  )
+    return transportFailed();
   const delay =
     Date.parse(claimReceipt.cleanupRequest.deletionNotBefore) - Date.parse(now);
   if (delay <= 0) return;
@@ -609,6 +643,13 @@ const waitForDeletionFence = async (
     return transportFailed();
   }
   await dependencies.wait(delay, signal);
+  if (
+    signal.aborted ||
+    Date.parse(instant(dependencies.clock)) <
+      Date.parse(claimReceipt.cleanupRequest.deletionNotBefore)
+  ) {
+    return transportFailed();
+  }
 };
 
 const executeProviderCleanup = async (
@@ -747,21 +788,7 @@ export const createProductionAgentEvaluationHostedRetrievalRuntimeResourceCleanu
       return invalid();
     }
     const clock = input.clock ?? (() => new Date());
-    const wait =
-      input.wait ??
-      ((milliseconds: number, signal: AbortSignal) =>
-        new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(resolve, milliseconds);
-          const abort = () => {
-            clearTimeout(timeout);
-            reject(
-              new AgentEvaluationRunnerError(
-                AGENT_EVALUATION_RUNNER_ERROR_CODES.aborted
-              )
-            );
-          };
-          signal.addEventListener('abort', abort, { once: true });
-        }));
+    const wait = input.wait ?? waitForCleanupDeadline;
 
     const cleanup = async (
       storedSetInput: AgentEvaluationHostedRetrievalRuntimeResourceStoredSet,
@@ -888,7 +915,7 @@ export const createProductionAgentEvaluationHostedRetrievalRuntimeResourceRecove
       return invalid();
     }
     const clock = input.clock ?? (() => new Date());
-    const wait = input.wait ?? (async () => undefined);
+    const wait = input.wait ?? waitForCleanupDeadline;
     const recoverPage = async (
       cursor: AgentHostedRetrievalRuntimeResourceRecoveryCursor | null = null,
       signal: AbortSignal = new AbortController().signal

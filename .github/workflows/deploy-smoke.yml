@@ -99,6 +99,20 @@ jobs:
       - name: Verify production plugin sandbox policy
         run: node apps/plugin-sandbox/scripts/verify-deployment.mjs http://127.0.0.1:4174
 
+      - name: Verify editor browser isolation headers
+        run: |
+          for path in / /assets/not-found.js; do
+            headers="$(curl -sSI "http://127.0.0.1:4173$path")"
+            printf '%s\n' "$headers" | grep -qi '^Cross-Origin-Opener-Policy: same-origin'
+            printf '%s\n' "$headers" | grep -qi '^Cross-Origin-Embedder-Policy: credentialless'
+          done
+
+      - name: Verify artifact volume survives backend recreation
+        run: |
+          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env exec -T backend sh -c 'printf artifact-volume-probe > /app/data/verification/deployment-smoke-probe'
+          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env up -d --force-recreate --no-deps backend
+          docker compose -f deploy/docker-compose.ghcr.yml --env-file deploy/.env exec -T backend sh -c 'test "$(cat /app/data/verification/deployment-smoke-probe)" = artifact-volume-probe && rm /app/data/verification/deployment-smoke-probe'
+
       - name: Show service status
         if: always()
         run: |

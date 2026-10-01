@@ -235,7 +235,7 @@ func (store *Store) PutSnapshot(ctx context.Context, rawInput PutSnapshotInput) 
 	if err != nil {
 		return nil, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_revisions (environment_id, revision, public_bindings_json, secret_binding_ids_json, created_by_session_id, created_at) VALUES ($1, $2, $3, $4, $5, $6)`, storageID, revision, publicJSON, secretBindingJSON, input.Principal.SessionID, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO execution_environment_revisions (environment_id, revision, public_bindings_json, secret_binding_ids_json, created_by_session_id, created_at, mode) VALUES ($1, $2, $3, $4, $5, $6, $7)`, storageID, revision, publicJSON, secretBindingJSON, input.Principal.SessionID, now, input.Mode); err != nil {
 		return nil, err
 	}
 	for _, bindingID := range secretBindingIDs {
@@ -268,9 +268,9 @@ func (store *Store) GetSnapshot(ctx context.Context, principal PrincipalSession,
 	defer cancel()
 	var snapshot Snapshot
 	var publicJSON, secretBindingJSON []byte
-	query := `SELECT e.environment_key, e.workspace_id, r.revision, e.mode, r.public_bindings_json, r.secret_binding_ids_json, r.created_at
+	query := `SELECT e.environment_key, e.workspace_id, r.revision, r.mode, r.public_bindings_json, r.secret_binding_ids_json, r.created_at
 		FROM execution_environments e JOIN execution_environment_revisions r ON r.environment_id = e.id
-		WHERE e.environment_key = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.revision = CASE WHEN $4 = '' THEN e.current_revision ELSE $4 END`
+		WHERE e.environment_key = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.mode IS NOT NULL AND r.revision = CASE WHEN $4 = '' THEN e.current_revision ELSE $4 END`
 	err = store.db.QueryRowContext(ctx, query, environmentID, workspaceID, principal.PrincipalID, revision).Scan(&snapshot.EnvironmentID, &snapshot.WorkspaceID, &snapshot.Revision, &snapshot.Mode, &publicJSON, &secretBindingJSON, &snapshot.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

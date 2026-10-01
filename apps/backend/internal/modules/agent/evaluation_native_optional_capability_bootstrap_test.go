@@ -577,13 +577,13 @@ func TestEvaluationNativeOptionalCapabilityBootstrapSealsSharedDurableFact(t *te
 	}
 	// This golden anchors the Go canonical cross-owner chain to the generated
 	// evaluation vector; the relational checks above remain the semantic owner.
-	if fixture.Record.SourceRequestDigest != "sha256-7700d25e21771fe813f54174b895d8b7ec721cbe9b0c198ddfe4ea65aac04964" ||
-		fixture.Record.SourceOwnerStageDigest != "sha256-7f5b40e5e7bfc04c36c3cf72a3f3698a0ced003a18b7c4a7cd195c2ffa5ce855" ||
-		fixture.Record.SourceOwnerDispatchAckDigest != "sha256-bed7a52d6e0665f410c197f28f736a1072269e703e779accc0196aac8ccd63ad" ||
-		fixture.Record.SourceReceiptDigest != "sha256-ab733600ab1efcf7bd76835d85fa8e8439b24fce76ef0003323f4545804db315" ||
-		source.SourceSealDigest != "sha256-98e552b3669dc8299e951259ae97c75d8d30b19f8dc601b825baeee15211b6a9" ||
-		sealed.RuntimeFactEnvelopeDigest != "sha256-55100950a6b5fa8bcccccb814e428a75a19a2acca6422947bc13e1b0b58269ac" ||
-		sealed.FactAuthorityDigest != "sha256-ba7ebfe004704f7b840a0ea2dd35c6ab3e1fc9af251aa89612efc97c713872da" {
+	if fixture.Record.SourceRequestDigest != "sha256-9090a63955ca37be0af0d4d647dc00bd5d933ef304e1838b69076a5e88415b0d" ||
+		fixture.Record.SourceOwnerStageDigest != "sha256-1a0d28749d8c7797dc5bfb9b2a0b1e0311ae85812162cb8a44df287b04aae399" ||
+		fixture.Record.SourceOwnerDispatchAckDigest != "sha256-714682dbc636b7a9c3de275d4a9195e7c97852a57bbf03d591ca44386c1480ce" ||
+		fixture.Record.SourceReceiptDigest != "sha256-0f7eebc86d16d191a68d3e8bd054c3d5b9193438e0773aad26000cc2e69c0d16" ||
+		source.SourceSealDigest != "sha256-04f2115eb4112542fd520d7e48b9db7d51f89c64383bd08121c8b179edf29117" ||
+		sealed.RuntimeFactEnvelopeDigest != "sha256-c721db845ae7f0dcfc011569fbb9464f7582271e6fed4500b34b218f12da0985" ||
+		sealed.FactAuthorityDigest != "sha256-f0bbe85aa01a00839001beda3709669cd71cf078aa90fb588a1b96ee6e749193" {
 		t.Fatalf("native bootstrap cross-owner vector drifted: sourceRequest=%s stage=%s ack=%s sourceReceipt=%s outerSource=%s envelope=%s authority=%s",
 			fixture.Record.SourceRequestDigest, fixture.Record.SourceOwnerStageDigest,
 			fixture.Record.SourceOwnerDispatchAckDigest, fixture.Record.SourceReceiptDigest,

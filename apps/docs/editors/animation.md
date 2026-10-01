@@ -22,6 +22,8 @@ Animation 编辑器管理独立的 `pir-animation` 文档，涵盖轨道、关�
 
 Animation Play/Stop/Restart 已绑定当前 Canonical Workspace revision，并通过正式的 ExecutionJob、稳定 Session 和共享 Execution Center 运行。静态 scrub 仍采用轻量的本地求值方式；连续播放不再使用编辑器私有的 RAF 状态机。
 
-尚未实现的 custom easing、timeline script 和 shader CodeSlot 执行会安全失败（fail closed）。跨 timeline/route composition、reduced-motion policy、GPU effect、远程执行以及完整的性能/视觉回归 Gate 尚未交付。
+sequence、parallel、stagger 与 nested composition、Route lifecycle 联动、reduced-motion policy、target/property conflict，以及 typed CodeSlot 的执行契约已进入 G3 的实现与验证范围。编辑器支持从空时间轴添加目标绑定、选择 PIR 节点、添加轨道和删除绑定；这些操作仍经 Animation owner 生成 Workspace Command。
+
+CodeSlot 与 shader 的执行取决于当前 Runtime Port、编译诊断和设备 capability。缺少可用实现、GPU 或授权时会安全失败（fail closed），不能仅凭语言分析通过就宣称 GPU 执行可用。远程执行及性能、视觉回归的证据来自对应 Execution/Verification surface；本地播放或 scrub 结果不会自动升级为 Verification Evidence。全局阶段和已取得的 Gate 证据以仓库的 `specs/roadmap/current-status.md` 与 `g3-closure-evidence.md` 为准。
 
 继续阅读：[Code 与 Shader](/editors/code-and-shaders)与[Preview 与 Export](/concepts/preview-and-export)。

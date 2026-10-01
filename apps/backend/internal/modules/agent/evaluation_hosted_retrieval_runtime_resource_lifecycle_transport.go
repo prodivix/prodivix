@@ -1290,6 +1290,9 @@ func validateEvaluationHostedRetrievalRuntimeResourceLifecycleTransportHistoryTx
 		}
 	}
 	for intentIndex, intent := range request.DispatchIntentSet.Intents {
+		if err := validateEvaluationHostedLifecycleDeletionFenceTx(ctx, tx, intent, request.TransportReceiptSet.Receipts[intentIndex].StartedAt); err != nil {
+			return err
+		}
 		if stringMember(intent.Value, "lifecycleOwnerAuthorityIssuerId") != evaluationHostedRetrievalRuntimeResourceLifecycleDispatchAuthorityIssuerID ||
 			stringMember(intent.Value, "lifecycleOwnerImplementationDigest") != implementationDigest {
 			return ErrConflict

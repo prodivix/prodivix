@@ -197,8 +197,13 @@ export const getActiveCodeAuthoringDraft = (
   session: CodeAuthoringSession
 ): CodeAuthoringDraft | null =>
   session.activeArtifactId
-    ? (session.draftsByArtifactId[session.activeArtifactId] ?? null)
+    ? (getOwnDraft(session, session.activeArtifactId) ?? null)
     : null;
+
+const getOwnDraft = (session: CodeAuthoringSession, artifactId: string) =>
+  Object.hasOwn(session.draftsByArtifactId, artifactId)
+    ? session.draftsByArtifactId[artifactId]
+    : undefined;
 
 export const isCodeAuthoringDraftDirty = (draft: CodeAuthoringDraft): boolean =>
   draft.source !== draft.baseline.source;
@@ -211,7 +216,7 @@ export const isCodeAuthoringSessionDirty = (
   artifactId?: string
 ): boolean => {
   if (artifactId) {
-    const draft = session.draftsByArtifactId[artifactId];
+    const draft = getOwnDraft(session, artifactId);
     return draft ? isCodeAuthoringDraftDirty(draft) : false;
   }
   return Object.values(session.draftsByArtifactId).some(
@@ -233,7 +238,7 @@ export const reconcileCodeAuthoringSessionArtifact = (
       : session;
   }
   const canonical = freezeArtifactSnapshot(artifact);
-  const current = session.draftsByArtifactId[artifact.artifactId];
+  const current = getOwnDraft(session, artifact.artifactId);
   let nextDraft: CodeAuthoringDraft;
   if (!current) {
     nextDraft = freezeDraft({
@@ -298,9 +303,7 @@ export const updateCodeAuthoringSessionDraft = (
   source: string
 ): CodeAuthoringSession => {
   const artifactId = session.activeArtifactId;
-  const current = artifactId
-    ? session.draftsByArtifactId[artifactId]
-    : undefined;
+  const current = artifactId ? getOwnDraft(session, artifactId) : undefined;
   if (!artifactId || !current || current.source === source) return session;
   return Object.freeze({
     ...session,
@@ -316,9 +319,7 @@ export const discardCodeAuthoringSessionDraft = (
   session: CodeAuthoringSession,
   artifactId = session.activeArtifactId
 ): CodeAuthoringSession => {
-  const current = artifactId
-    ? session.draftsByArtifactId[artifactId]
-    : undefined;
+  const current = artifactId ? getOwnDraft(session, artifactId) : undefined;
   if (!artifactId || !current) return session;
   return Object.freeze({
     ...session,
@@ -351,7 +352,7 @@ export const completeCodeAuthoringSessionSave = (
   session: CodeAuthoringSession,
   saved: CodeAuthoringArtifactSnapshot
 ): CodeAuthoringSession => {
-  const current = session.draftsByArtifactId[saved.artifactId];
+  const current = getOwnDraft(session, saved.artifactId);
   if (!current) return session;
   const canonical = freezeArtifactSnapshot(saved);
   return Object.freeze({

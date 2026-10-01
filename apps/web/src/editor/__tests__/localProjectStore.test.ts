@@ -7,6 +7,8 @@ import {
   deleteLocalProjectsSyncedToRemote,
   duplicateLocalProject,
   getLocalProject,
+  LOCAL_WORKSPACE_CAPABILITIES,
+  LOCAL_READONLY_WORKSPACE_CAPABILITIES,
   isSyncedLocalProject,
   listLocalProjectCatalog,
   listLocalProjects,
@@ -110,6 +112,21 @@ describe('localProjectStore', () => {
     records.clear();
     catalogRecords.clear();
     installIndexedDbMock();
+  });
+
+  it('grants editable local Code document and directory operations and denies them for a synchronized cache', () => {
+    const ids = [
+      'core.workspace.code-document.create@1.0',
+      'core.workspace.code-document.rename@1.0',
+      'core.workspace.code-document.delete@1.0',
+      'core.workspace.directory.create@1.0',
+      'core.workspace.directory.rename@1.0',
+      'core.workspace.directory.delete@1.0',
+    ];
+    for (const id of ids) {
+      expect(LOCAL_WORKSPACE_CAPABILITIES[id]).toBe(true);
+      expect(LOCAL_READONLY_WORKSPACE_CAPABILITIES[id]).toBe(false);
+    }
   });
 
   it('persists canonical workspaces through the wire codec', async () => {

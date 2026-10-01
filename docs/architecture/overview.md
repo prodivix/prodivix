@@ -272,6 +272,15 @@ hosted-capability evidence与 G3 Closure分别成立。完整 contract 见
 
 ## 不变量与子系统文档
 
+普通 Agent 产品调用链由 Browser/CLI 的 Task admission 请求、Backend 冻结的 authenticated
+challenge、`apps/agent-runtime` 的受信任 policy evaluator、Backend 持久化的 bounded grant 和
+Task/Run ledger 组成。Browser 不提交 provider credential 或自授权限。Worker 通过公开领域
+owner 生成可审阅 proposal/preview；只有 exact human approval 与同事务有效 lease/generation
+preflight 才能进入原有 Atomic Commit。G3 Run 与 Agent Run、generation、ACK 的绑定由 Backend
+保存，实际不可变 Evidence 和 satisfied Closure 决定 apply 结果。服务未配置、worker 停止、
+资格缺失或 verification driver 未登记都会 fail closed，不能把 plan-only draft 或 queued G3 Run
+计为可执行 apply 或通过验证。
+
 - Canonical Workspace VFS 是唯一作者态真相；PIR、Route、NodeGraph、Animation、Data、BehaviorScenario、VerificationPolicy、Code、Token、Asset 与 Config 由各自 owner 管理。PIR 不是整个项目的单一巨型 JSON。
 - Renderer、Semantic Index、Code Authoring、Execution Snapshot、Git 与 Export 都是 revision-bound projection，不得成为第二作者态。
 - Code-owned 能力通过 [Code Authoring Environment ADR](../../specs/decisions/28.code-authoring-environment.md)；跨领域符号与引用通过 [Workspace Semantic Index ADR](../../specs/decisions/25.authoring-symbol-environment.md)。

@@ -11,6 +11,10 @@ import type {
 import { AiDraftProviderError } from './draft.types';
 import { AiDraftToolRegistry } from './aiDraftToolRegistry';
 import { validateAiDraftPlan } from './validateAiDraftPlan';
+import {
+  isBoundedAiDraftRawResponse,
+  MAXIMUM_AI_DRAFT_BYTES,
+} from './draftLimits';
 
 export interface AiDraftGatewayOptions {
   provider: AiDraftProvider;
@@ -118,11 +122,29 @@ export class AiDraftGateway {
 
     let providerResult:
       Readonly<{ output: AiDraftPlan; rawResponse?: string }> | undefined;
+    let rawBytes = 0;
     try {
       for await (const event of this.provider.stream({
         draft,
         tools: context.allowedTools,
       })) {
+        if (event.type === 'raw-delta') {
+          rawBytes += new TextEncoder().encode(event.delta).byteLength;
+          if (rawBytes > MAXIMUM_AI_DRAFT_BYTES)
+            throw new AiDraftProviderError(
+              'AI draft response exceeds its byte limit.',
+              { code: 'AI-4010' }
+            );
+        }
+        if (
+          (event.type === 'raw-snapshot' ||
+            event.type === 'validated-output') &&
+          !isBoundedAiDraftRawResponse(event.rawResponse)
+        )
+          throw new AiDraftProviderError(
+            'AI draft response exceeds its byte limit.',
+            { code: 'AI-4010' }
+          );
         if (event.type === 'validated-output') {
           providerResult = {
             output: event.output,
@@ -180,6 +202,14 @@ export class AiDraftGateway {
     context: DraftRunContext,
     providerResult: Readonly<{ output: AiDraftPlan; rawResponse?: string }>
   ): AiDraftResult {
+    if (
+      providerResult.rawResponse !== undefined &&
+      !isBoundedAiDraftRawResponse(providerResult.rawResponse)
+    )
+      throw new AiDraftProviderError(
+        'AI draft response exceeds its byte limit.',
+        { code: 'AI-4002' }
+      );
     const validated = validateAiDraftPlan(providerResult.output);
     if (!validated.output) {
       throw new AiDraftProviderError(
@@ -217,7 +247,11 @@ export class AiDraftGateway {
       requestId: context.draft.id,
       status: 'failed',
       rawResponse:
-        error instanceof AiDraftProviderError ? error.rawResponse : undefined,
+        error instanceof AiDraftProviderError &&
+        error.rawResponse !== undefined &&
+        isBoundedAiDraftRawResponse(error.rawResponse)
+          ? error.rawResponse
+          : undefined,
       diagnostics: [diagnostic],
       traceId: context.traceId,
     };

@@ -55,6 +55,38 @@ const secretProfile = {
 } as const;
 
 describe('Server runtime profile', () => {
+  it('preserves a valid special export through normalization and JSON roundtrip', () => {
+    const special = {
+      schemaVersion: '1.0' as const,
+      functionsByExport: {
+        ['__proto__']: profile.functionsByExport.loadPrincipal,
+      },
+    };
+    const metadata = writeServerRuntimeProfile(undefined, special, 'ts');
+    const decoded = decodeServerRuntimeProfile(
+      JSON.parse(JSON.stringify(metadata)),
+      'ts'
+    );
+    expect(decoded.status).toBe('valid');
+    if (decoded.status !== 'valid') return;
+    expect(Object.keys(decoded.profile.functionsByExport)).toEqual([
+      '__proto__',
+    ]);
+    expect(
+      resolveServerFunctionDefinition(decoded.profile, 'code-auth', '__proto__')
+    ).toMatchObject({
+      kind: 'route-loader',
+      reference: { artifactId: 'code-auth', exportName: '__proto__' },
+    });
+  });
+  it.each(['toString', 'constructor'])(
+    'does not resolve absent inherited export %s',
+    (name) => {
+      expect(
+        resolveServerFunctionDefinition(profile, 'code-auth', name)
+      ).toBeUndefined();
+    }
+  );
   it('writes a normalized profile while preserving sibling Code metadata', () => {
     const metadata = writeServerRuntimeProfile(
       { sibling: { owner: 'code' } },

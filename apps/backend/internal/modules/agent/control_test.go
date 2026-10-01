@@ -122,6 +122,20 @@ func TestModeSpecificSuccessProofFailsClosed(t *testing.T) {
 	}
 }
 
+func TestGenericPhaseChangeCannotEnterCancellingWithoutRevokingAuthority(t *testing.T) {
+	vector := readRepositoryVector(t)
+	current, err := decodeRunFact(vector.CancellationSequence[1].Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := current
+	next.Phase = "cancelling"
+	event := eventFact{Type: "run.phase-changed", Data: map[string]any{"phase": "cancelling"}}
+	if err := validateEventSpecificTransition("apply", current, next, event); err == nil {
+		t.Fatal("generic cancelling accepted while callback authority and generation remained active")
+	}
+}
+
 func TestCancellationVectorRevokesOperationAndClosesCleanup(t *testing.T) {
 	vector := readRepositoryVector(t)
 	task, err := decodeTaskFact(vector.Facts.Task)

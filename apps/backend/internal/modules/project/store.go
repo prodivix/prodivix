@@ -140,14 +140,14 @@ WHERE owner_id = $1 AND id = $2`
 	return project, nil
 }
 
-func (store *ProjectStore) PublishWorkspaceProjection(ownerID, projectID string, pir json.RawMessage) (*Project, error) {
+func (store *ProjectStore) PublishWorkspaceProjection(ctx context.Context, tx *sql.Tx, ownerID, projectID string, pir json.RawMessage) (*Project, error) {
+	if tx == nil {
+		return nil, errors.New("publication requires the locked Workspace transaction")
+	}
 	normalizedPIR, err := normalizePIR(pir)
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	const query = `UPDATE projects
 SET published_pir_json = $3::jsonb,
@@ -156,7 +156,7 @@ SET published_pir_json = $3::jsonb,
 WHERE owner_id = $1 AND id = $2
 RETURNING id, owner_id, resource_type, name, description, is_public, stars_count, created_at, updated_at`
 
-	row := store.db.QueryRowContext(ctx, query, ownerID, projectID, string(normalizedPIR))
+	row := tx.QueryRowContext(ctx, query, ownerID, projectID, string(normalizedPIR))
 	project, err := scanProject(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

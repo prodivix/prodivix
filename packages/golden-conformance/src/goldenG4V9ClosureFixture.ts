@@ -61,6 +61,7 @@ import {
   bindGoldenG4VerificationFlow,
   GOLDEN_G4_V6_FAILED_FLOW,
   GOLDEN_G4_V6_FAILURE_CONTEXT_PACK,
+  GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS,
   GOLDEN_G4_V6_PRODUCER,
   GOLDEN_G4_V6_REPAIR_APPROVAL,
   GOLDEN_G4_V6_REPAIR_PREPARATION,
@@ -611,6 +612,8 @@ export const executeGoldenG4V9Closure = async (
     failedPlan: GOLDEN_G4_V6_FAILED_FLOW.plan,
     failedEvidence: GOLDEN_G4_V6_FAILED_FLOW.evidence,
     failureContextPack: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK,
+    failureContextMaterials: GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS,
+    effectivePolicyDigest: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK.policyDigest,
     previousRepairReceipts: Object.freeze([
       GOLDEN_G4_V6_REPAIR_PREPARATION.receipt,
     ]),

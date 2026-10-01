@@ -87,13 +87,24 @@ describe('Golden G3 V6 scenario-internal controlled dimensions', () => {
       role: 'scenario-internal-controlled-profiles',
       planAxis: false,
       expectedPassedCaseCount: 28,
-      expectedOwnerPassedCaseCount: 127,
+      expectedOwnerPassedCaseCount: 128,
       manifestDigest: expect.stringMatching(/^sha256-[a-f0-9]{64}$/u),
     });
     expect(
       GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.controlledDimensionIds
     ).toHaveLength(17);
     expect(GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.suites).toHaveLength(8);
+    expect(
+      GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.suites.map(
+        ({ expectedOwnerPassedCaseCount }) => expectedOwnerPassedCaseCount
+      )
+    ).toEqual([20, 9, 12, 7, 14, 6, 7, 53]);
+    expect(
+      GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.suites.reduce(
+        (count, suite) => count + suite.expectedOwnerPassedCaseCount,
+        0
+      )
+    ).toBe(128);
     const covered = new Set(
       GOLDEN_G3_V6_CONTROLLED_DIMENSION_MANIFEST.suites.flatMap((suite) =>
         suite.cases.flatMap((testCase) => testCase.covers)

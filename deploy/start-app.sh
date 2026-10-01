@@ -175,6 +175,12 @@ write_env_file() {
   local token_ttl="${11}"
   local verification_resume_key="${12}"
   local timezone="${13}"
+  local reset_settings=""
+
+  # Preserve operator-managed SMTP values verbatim; never source the credential file.
+  if [[ -f "$ENV_FILE" ]]; then
+    reset_settings="$(grep -E '^BACKEND_(PASSWORD_RESET_(URL|TTL)|SMTP_(HOST|PORT|FROM|USERNAME|PASSWORD|TLS_MODE))=' "$ENV_FILE" || true)"
+  fi
 
   create_private_env_file
   cat >"$ENV_FILE" <<EOF
@@ -194,6 +200,7 @@ BACKEND_DB_MAX_OPEN_CONNS=10
 BACKEND_DB_MAX_IDLE_CONNS=5
 BACKEND_DB_MAX_LIFETIME=30m
 BACKEND_DB_MIGRATION_TIMEOUT=2m
+$reset_settings
 
 WEB_PORT=$web_port
 SANDBOX_PORT=$sandbox_port

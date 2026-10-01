@@ -3,6 +3,7 @@ import PdxEmpty from '../feedback/PdxEmpty';
 import PdxSkeleton from '../feedback/PdxSkeleton';
 import {
   getDataAttributes,
+  isInteractiveDescendantEvent,
   mergeClassNames,
   type PdxNativeProps,
 } from '../foundation/component';
@@ -324,7 +325,12 @@ function PdxTableInner<T extends Record<string, unknown>>(
                       key={entry.key}
                       onClick={
                         selection.selectable
-                          ? () => {
+                          ? (event) => {
+                              if (
+                                event.defaultPrevented ||
+                                isInteractiveDescendantEvent(event)
+                              )
+                                return;
                               keyboard.setActiveRowKey(entry.key);
                               selection.toggle(entry.key);
                             }
@@ -333,6 +339,11 @@ function PdxTableInner<T extends Record<string, unknown>>(
                       onKeyDown={
                         selection.selectable
                           ? (event) => {
+                              if (
+                                event.defaultPrevented ||
+                                event.target !== event.currentTarget
+                              )
+                                return;
                               if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault();
                                 keyboard.setActiveRowKey(entry.key);

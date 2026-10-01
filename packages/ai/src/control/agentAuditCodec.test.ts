@@ -8,6 +8,7 @@ import {
 } from '../__tests__/agentV4Fixtures';
 import {
   createAgentAuditExport,
+  isAgentAuditExport,
   verifyAgentControlEventChain,
 } from './agentAudit';
 import { sanitizeAgentAuditPayload } from './agentAuditSanitizer';
@@ -28,6 +29,73 @@ import {
 } from './agentControlPlane';
 
 describe('Agent control audit, lease, and wire contracts', () => {
+  it('rejects an export predating an earlier event even when the final event is older', () => {
+    const task = createV4Task('explain', 'audit-earlier-time');
+    const created = createAgentRunControl(task, {
+      runId: 'run.audit-earlier-time',
+      command: v4Command('event.audit-first', 'key.audit-first', V4_TIME.run),
+    });
+    if (!created.accepted) throw new Error('run creation failed');
+    const started = startAgentRun(task, created.state, {
+      ...v4Command('event.audit-second', 'key.audit-second', V4_TIME.start),
+      attemptId: 'attempt.audit-time',
+    });
+    if (!started.accepted) throw new Error('run start failed');
+    const { eventDigest: _first, ...firstBase } = created.event;
+    const futureFirstBase = { ...firstBase, occurredAt: V4_TIME.export };
+    const first = {
+      ...futureFirstBase,
+      eventDigest: v4Digest(futureFirstBase),
+    };
+    const { eventDigest: _second, ...secondBase } = started.event;
+    const linkedSecondBase = {
+      ...secondBase,
+      previousEventDigest: first.eventDigest,
+    };
+    const second = {
+      ...linkedSecondBase,
+      eventDigest: v4Digest(linkedSecondBase),
+    };
+    expect(verifyAgentControlEventChain([first, second])).toBe(true);
+    expect(() =>
+      createAgentAuditExport([first, second], V4_TIME.start)
+    ).toThrow();
+    const valid = createAgentAuditExport([first, second], V4_TIME.export);
+    const { exportDigest: _export, ...base } = valid;
+    const invalidBase = { ...base, exportedAt: V4_TIME.start };
+    const invalid = { ...invalidBase, exportDigest: v4Digest(invalidBase) };
+    expect(isAgentAuditExport(invalid)).toBe(false);
+    const wire = encodeAgentControlFact({
+      factType: 'audit-export',
+      value: valid,
+    });
+    expect(decodeAgentControlFact({ ...wire, value: invalid }).ok).toBe(false);
+  });
+  it('rejects audit export time before the final event at constructor and wire boundaries', () => {
+    const task = createV4Task('explain', 'audit-time');
+    const created = createAgentRunControl(task, {
+      runId: 'run.audit-time',
+      command: v4Command('event.audit-time', 'key.audit-time', V4_TIME.run),
+    });
+    if (!created.accepted) throw new Error('run creation failed');
+    const audit = createAgentAuditExport([created.event], V4_TIME.run);
+    expect(isAgentAuditExport(audit)).toBe(true);
+    expect(() =>
+      createAgentAuditExport([created.event], V4_TIME.task)
+    ).toThrow();
+    const { exportDigest: _exportDigest, ...base } = audit;
+    const earlier = { ...base, exportedAt: V4_TIME.task };
+    const invalid = { ...earlier, exportDigest: v4Digest(earlier) };
+    expect(isAgentAuditExport(invalid)).toBe(false);
+    expect(() =>
+      encodeAgentControlFact({ factType: 'audit-export', value: invalid })
+    ).toThrow();
+    const wire = encodeAgentControlFact({
+      factType: 'audit-export',
+      value: audit,
+    });
+    expect(decodeAgentControlFact({ ...wire, value: invalid }).ok).toBe(false);
+  });
   it('exports a bounded verified hash chain and round-trips every fact kind', () => {
     const task = createV4Task('explain', 'audit');
     const created = createAgentRunControl(task, {

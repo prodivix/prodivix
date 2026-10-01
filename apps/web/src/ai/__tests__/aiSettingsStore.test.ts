@@ -19,7 +19,6 @@ Object.defineProperty(globalThis, 'localStorage', {
   value: storageStub,
 });
 
-const { useAiCredentialStore } = await import('../aiCredentialStore');
 const { useAiSettingsStore } = await import('../aiSettingsStore');
 
 const readStoredSettings = () => storedValues.get(storageKey) ?? '';
@@ -27,22 +26,21 @@ const readStoredSettings = () => storedValues.get(storageKey) ?? '';
 describe('AI provider settings persistence', () => {
   beforeEach(() => {
     storedValues.clear();
-    useAiCredentialStore.getState().clearApiKey();
     useAiSettingsStore.getState().resetSettings();
   });
 
-  it('never writes the provider credential to browser storage', () => {
-    useAiCredentialStore.getState().setApiKey(canary);
+  it('stores only public server provider preferences', () => {
     useAiSettingsStore.getState().setSettings({
-      enabled: true,
-      provider: 'openai-compatible',
+      provider: 'server',
+      providerId: 'configured',
+      modelId: 'public-model',
       baseURL: 'https://api.example.test/v1',
-      model: 'gpt-test',
-    });
+      apiKey: canary,
+    } as never);
 
-    expect(readStoredSettings()).toContain('https://api.example.test/v1');
+    expect(readStoredSettings()).toContain('configured');
+    expect(readStoredSettings()).not.toContain('https://api.example.test/v1');
     expect(readStoredSettings()).not.toContain(canary);
-    expect(useAiCredentialStore.getState().apiKey).toBe(canary);
   });
 
   it('drops a credential an earlier client already persisted', async () => {
@@ -68,5 +66,8 @@ describe('AI provider settings persistence', () => {
       JSON.stringify(useAiSettingsStore.getState().settings)
     ).not.toContain(canary);
     expect(readStoredSettings()).not.toContain(canary);
+    expect(useAiSettingsStore.getState().settings).toEqual({
+      provider: 'mock',
+    });
   });
 });

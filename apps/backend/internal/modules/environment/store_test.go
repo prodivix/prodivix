@@ -18,6 +18,31 @@ type encryptedCanaryArgument struct {
 	canary []byte
 }
 
+func TestGetSnapshotUsesRevisionModeAndRejectsUnknownLegacyHistory(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	store := NewStore(db, testMasterKey())
+	principal := PrincipalSession{PrincipalID: "principal-1", SessionID: "session-1"}
+	query := `SELECT e.environment_key, e.workspace_id, r.revision, r.mode, r.public_bindings_json, r.secret_binding_ids_json, r.created_at
+		FROM execution_environments e JOIN execution_environment_revisions r ON r.environment_id = e.id
+		WHERE e.environment_key = $1 AND e.workspace_id = $2 AND e.owner_id = $3 AND r.mode IS NOT NULL AND r.revision = CASE WHEN $4 = '' THEN e.current_revision ELSE $4 END`
+	mock.ExpectQuery(regexp.QuoteMeta(query)).WithArgs("environment-1", "workspace-1", "principal-1", "old-mock").WillReturnRows(sqlmock.NewRows([]string{"key", "workspace", "revision", "mode", "public", "secret", "created"}).AddRow("environment-1", "workspace-1", "old-mock", "mock", []byte(`{}`), []byte(`[]`), time.Unix(1000, 0)))
+	snapshot, err := store.GetSnapshot(t.Context(), principal, "workspace-1", "environment-1", "old-mock")
+	if err != nil || snapshot.Mode != "mock" {
+		t.Fatalf("historical snapshot = %#v, %v", snapshot, err)
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(query)).WithArgs("environment-1", "workspace-1", "principal-1", "unknown-legacy").WillReturnError(sql.ErrNoRows)
+	if _, err := store.GetSnapshot(t.Context(), principal, "workspace-1", "environment-1", "unknown-legacy"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown historical mode returned %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func (argument encryptedCanaryArgument) Match(value driver.Value) bool {
 	bytesValue, ok := value.([]byte)
 	return ok && len(bytesValue) > 0 && !bytes.Contains(bytesValue, argument.canary)
@@ -36,7 +61,7 @@ func TestPutSnapshotPersistsOnlyEncryptedSecretMaterial(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT owner_id FROM workspaces WHERE id = $1")).WithArgs("workspace-1").WillReturnRows(sqlmock.NewRows([]string{"owner_id"}).AddRow("principal-1"))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, owner_id, current_revision FROM execution_environments WHERE workspace_id = $1 AND environment_key = $2 FOR UPDATE")).WithArgs("workspace-1", "environment-1").WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("INSERT INTO execution_environments").WithArgs(sqlmock.AnyArg(), "workspace-1", "environment-1", "principal-1", "live", sqlmock.AnyArg(), store.now()).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("INSERT INTO execution_environment_revisions").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "session-1", store.now()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO execution_environment_revisions").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "session-1", store.now(), "live").WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("INSERT INTO execution_environment_secret_materials").WithArgs(
 		sqlmock.AnyArg(), sqlmock.AnyArg(), "access-token",
 		secretEnvelopeAlgorithm, staticKeyRingProviderID, "legacy-v1",
@@ -285,7 +310,7 @@ func TestPutSnapshotScopesEnvironmentIdentityToItsWorkspace(t *testing.T) {
 		"principal-b", "mock", sqlmock.AnyArg(), store.now(),
 	).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectExec("INSERT INTO execution_environment_revisions").
-		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "session-b", store.now()).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "session-b", store.now(), "mock").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 

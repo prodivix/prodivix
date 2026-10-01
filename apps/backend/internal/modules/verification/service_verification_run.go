@@ -2,6 +2,7 @@ package verification
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 )
 
@@ -11,6 +12,21 @@ func (service *Service) CreateVerificationRun(
 	workspaceID string,
 	payload json.RawMessage,
 ) (VerificationRunSnapshotWire, bool, error) {
+	return service.createVerificationRun(ctx, principalID, workspaceID, payload, nil)
+}
+
+// CreateVerificationRunWithAuthorization preserves G3 wire/provenance admission while
+// letting a caller validate a narrower durable authority in the actual write transaction.
+// The callback must be idempotent and confined to this transaction: it runs
+// before G3 locks and again after acquisition to refresh time-bound authority.
+func (service *Service) CreateVerificationRunWithAuthorization(ctx context.Context, principalID, workspaceID string, payload json.RawMessage, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
+	if authorize == nil {
+		return VerificationRunSnapshotWire{}, false, ErrUnauthorized
+	}
+	return service.createVerificationRun(ctx, principalID, workspaceID, payload, authorize)
+}
+
+func (service *Service) createVerificationRun(ctx context.Context, principalID, workspaceID string, payload json.RawMessage, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
 	if err := service.requirePermission(
 		ctx,
 		principalID,
@@ -42,11 +58,12 @@ func (service *Service) CreateVerificationRun(
 			ErrInvalid,
 		)
 	}
-	return service.repository.CreateVerificationRun(
+	return service.repository.createVerificationRun(
 		ctx,
 		principalID,
 		wire,
 		canonical,
+		authorize,
 	)
 }
 
@@ -57,6 +74,19 @@ func (service *Service) AppendVerificationRunEvent(
 	runID string,
 	payload json.RawMessage,
 ) (VerificationRunSnapshotWire, bool, error) {
+	return service.appendVerificationRunEvent(ctx, principalID, workspaceID, runID, payload, nil)
+}
+
+// AppendVerificationRunEventWithAuthorization uses the same repeatable transaction
+// authorization contract as CreateVerificationRunWithAuthorization.
+func (service *Service) AppendVerificationRunEventWithAuthorization(ctx context.Context, principalID, workspaceID, runID string, payload json.RawMessage, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
+	if authorize == nil {
+		return VerificationRunSnapshotWire{}, false, ErrUnauthorized
+	}
+	return service.appendVerificationRunEvent(ctx, principalID, workspaceID, runID, payload, authorize)
+}
+
+func (service *Service) appendVerificationRunEvent(ctx context.Context, principalID, workspaceID, runID string, payload json.RawMessage, authorize func(context.Context, *sql.Tx) error) (VerificationRunSnapshotWire, bool, error) {
 	if err := service.requirePermission(
 		ctx,
 		principalID,
@@ -86,13 +116,14 @@ func (service *Service) AppendVerificationRunEvent(
 			ErrInvalid,
 		)
 	}
-	return service.repository.AppendVerificationRunEvent(
+	return service.repository.appendVerificationRunEvent(
 		ctx,
 		principalID,
 		workspaceID,
 		runID,
 		wire,
 		canonical,
+		authorize,
 	)
 }
 

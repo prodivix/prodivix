@@ -628,8 +628,9 @@ func validateAgentAuditExport(value map[string]any) error {
 			return err
 		}
 	}
-	if err := requireInstant(value["exportedAt"], "/value/exportedAt"); err != nil {
-		return err
+	exportedAt, err := parseInstant(value["exportedAt"])
+	if err != nil {
+		return fmt.Errorf("/value/exportedAt: %w", err)
 	}
 	events, ok := value["events"].([]any)
 	if !ok || len(events) == 0 || len(events) > 10_000 {
@@ -649,6 +650,10 @@ func validateAgentAuditExport(value map[string]any) error {
 		}
 		if err := validateAgentRunEvent(event); err != nil {
 			return fmt.Errorf("Agent audit event %d: %w", index, err)
+		}
+		occurredAt, _ := parseInstant(event["occurredAt"])
+		if exportedAt.Before(occurredAt) {
+			return errors.New("Agent audit export timestamp precedes an event")
 		}
 		sequence, _ := safeInteger(event["sequence"])
 		if sequence != from+int64(index) || event["taskId"] != value["taskId"] || event["runId"] != value["runId"] {

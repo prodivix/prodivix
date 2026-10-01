@@ -17,6 +17,11 @@ import {
   isBehaviorScenario,
   type BehaviorScenarioProgram,
 } from '@prodivix/behavior';
+import { ANIMATION_BEHAVIOR_REGISTRY_CONTRIBUTION } from '@prodivix/animation';
+import { DATA_BEHAVIOR_REGISTRY_CONTRIBUTION } from '@prodivix/data';
+import { NODEGRAPH_BEHAVIOR_REGISTRY_CONTRIBUTION } from '@prodivix/nodegraph';
+import { PIR_BEHAVIOR_REGISTRY_CONTRIBUTION } from '@prodivix/pir';
+import { ROUTE_BEHAVIOR_REGISTRY_CONTRIBUTION } from '@prodivix/router';
 import {
   computeVerificationArtifactContentDigest,
   digestVerificationValue,
@@ -380,6 +385,11 @@ const compileBrowserMaterial = (
   );
   const registry = createBehaviorRegistry([
     BEHAVIOR_CORE_REGISTRY_CONTRIBUTION,
+    PIR_BEHAVIOR_REGISTRY_CONTRIBUTION,
+    DATA_BEHAVIOR_REGISTRY_CONTRIBUTION,
+    ROUTE_BEHAVIOR_REGISTRY_CONTRIBUTION,
+    NODEGRAPH_BEHAVIOR_REGISTRY_CONTRIBUTION,
+    ANIMATION_BEHAVIOR_REGISTRY_CONTRIBUTION,
   ]);
   if (semantic.status !== 'ready' || !registry.ok) {
     return fail('behavior-authority');
@@ -794,12 +804,12 @@ export const createProductionControlledWorkspaceTransactionG3Authority = (
           return compiled.material;
         },
         async readBrowserVerificationProfile(request) {
-          const active = [...activeByAuthorityInput.values()].find(
-            (candidate) =>
-              candidate.compiledByOuterCell.get(request.cell.id)?.material
-                .receiptDigest === request.materialReceiptDigest
-          );
-          const compiled = active?.compiledByOuterCell.get(request.cell.id);
+          const compiled = [...activeByAuthorityInput.values()]
+            .flatMap((candidate) => [...candidate.compiledByOuterCell.values()])
+            .find(
+              ({ material }) =>
+                material.receiptDigest === request.materialReceiptDigest
+            );
           if (
             !compiled ||
             !sameCanonicalJson(compiled.material.cell, request.cell)

@@ -16,6 +16,7 @@ type FakeRequesterCapture = {
 const fakeRequester = (input: {
   remoteAddress: string;
   statusCode?: number;
+  asynchronous?: boolean;
   capture: FakeRequesterCapture;
 }): Parameters<typeof createAgentEvaluationEgressBoundFetch>[0] =>
   ((
@@ -53,8 +54,12 @@ const fakeRequester = (input: {
       incoming.statusCode = input.statusCode ?? 200;
       incoming.statusMessage = input.statusCode === 302 ? 'Found' : 'OK';
       incoming.rawHeaders = ['content-type', 'application/json'];
-      onResponse(incoming as unknown as IncomingMessage);
-      incoming.end('{"ok":true}');
+      const respond = () => {
+        onResponse(incoming as unknown as IncomingMessage);
+        incoming.end('{"ok":true}');
+      };
+      if (input.asynchronous) queueMicrotask(respond);
+      else respond();
     };
     return request;
   }) as unknown as Parameters<typeof createAgentEvaluationEgressBoundFetch>[0];
@@ -79,6 +84,47 @@ const deleteRequestInit = (): RequestInit => ({
 });
 
 describe('agent evaluation egress-bound HTTPS fetch', () => {
+  it.each([204, 205, 304])(
+    'resolves asynchronous no-content HTTP %i with a null body',
+    async (statusCode) => {
+      const capture: FakeRequesterCapture = { callCount: 0 };
+      const fetcher = createAgentEvaluationEgressBoundFetch(
+        fakeRequester({
+          remoteAddress: '8.8.8.8',
+          statusCode,
+          asynchronous: true,
+          capture,
+        })
+      );
+      const response = await fetcher(
+        'https://provider.example/v1/resources/resource',
+        deleteRequestInit(),
+        ['8.8.8.8']
+      );
+      expect(response.status).toBe(statusCode);
+      expect(response.body).toBeNull();
+      expect(await response.text()).toBe('');
+    }
+  );
+
+  it('rejects an invalid asynchronous response instead of throwing from the callback', async () => {
+    const capture: FakeRequesterCapture = { callCount: 0 };
+    const fetcher = createAgentEvaluationEgressBoundFetch(
+      fakeRequester({
+        remoteAddress: '8.8.8.8',
+        statusCode: 199,
+        asynchronous: true,
+        capture,
+      })
+    );
+    await expect(
+      fetcher(
+        'https://provider.example/v1/resources/resource',
+        deleteRequestInit(),
+        ['8.8.8.8']
+      )
+    ).rejects.toBeInstanceOf(RangeError);
+  });
   it('pins lookup and the connected peer while retaining hostname TLS authority', async () => {
     const capture: FakeRequesterCapture = { callCount: 0 };
     const fetcher = createAgentEvaluationEgressBoundFetch(

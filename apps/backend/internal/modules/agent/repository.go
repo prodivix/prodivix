@@ -72,6 +72,10 @@ func (repository *Repository) CreateTask(
 	authority PrincipalAuthority,
 	factBytes []byte,
 ) (TaskRecord, bool, error) {
+	return repository.createTask(ctx, authority, factBytes, nil)
+}
+
+func (repository *Repository) createTask(ctx context.Context, authority PrincipalAuthority, factBytes []byte, admission func(context.Context, *sql.Tx, taskFact) error) (TaskRecord, bool, error) {
 	if err := repository.available(); err != nil {
 		return TaskRecord{}, false, err
 	}
@@ -102,6 +106,11 @@ FOR SHARE`, task.WorkspaceID, task.ProjectID).Scan(&workspaceOwnerID); errors.Is
 	}
 	if task.ActorKind == "user" && workspaceOwnerID != task.ActorID {
 		return TaskRecord{}, false, ErrUnauthorized
+	}
+	if admission != nil {
+		if err := admission(ctx, tx, task); err != nil {
+			return TaskRecord{}, false, err
+		}
 	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO agent_tasks (
 	workspace_id, task_id, project_id, actor_kind, actor_id, mode,

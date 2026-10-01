@@ -3,3 +3,17 @@ pnpm-lock.yaml
 package-lock.json
 yarn.lock
 bun.lockb
+**/dist/**
+**/dist-ssr/**
+**/build/**
+**/coverage/**
+**/.turbo/**
+**/.vitepress/cache/**
+**/.vitepress/dist/**
+**/.vitepress/.temp/**
+**/storybook-static/**
+**/out/**
+**/test-results/**
+**/playwright-report/**
+**/.tmp*/**
+packages/golden-conformance/.golden-*/**

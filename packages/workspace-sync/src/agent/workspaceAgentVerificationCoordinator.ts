@@ -8,6 +8,7 @@ import {
   type AgentApprovalPreflightContext,
   type AgentCommittedVerificationPlanBinding,
   type AgentContextPack,
+  type AgentContextMaterial,
   type AgentPolicy,
   type AgentPrincipalRef,
   type AgentRepairBlockReason,
@@ -24,6 +25,7 @@ import {
 import {
   digestVerificationValue,
   evaluateVerificationClosure,
+  validateVerificationPlan,
   type EvaluateVerificationClosureInput,
   type VerificationClosure,
   type VerificationEvidence,
@@ -32,6 +34,7 @@ import {
   type VerificationRunSnapshot,
 } from '@prodivix/verification';
 import type { WorkspaceAgentProposalProjection } from './workspaceAgentProposalCoordinator';
+import { workspaceAgentContextContainsRepairFailure } from './workspaceAgentRepairContext';
 
 export type WorkspaceAgentVerificationIssue = Readonly<{
   code: 'AI-6001' | 'AI-6002' | 'AI-6010' | 'AI-7006' | 'AI-9001';
@@ -168,7 +171,33 @@ const retainsApprovedRequiredCells = (
   );
 };
 
-const retainsRegressionRequirements = (
+/** Rollback changes revisions and impact, while keeping the approved validation inputs and every required check. */
+export const retainsWorkspaceAgentRollbackVerificationPlan = (
+  approved: VerificationPlan,
+  actual: VerificationPlan
+): boolean => {
+  if (
+    !validateVerificationPlan(approved).ok ||
+    !validateVerificationPlan(actual).ok ||
+    approved.workspaceId !== actual.workspaceId ||
+    approved.scenarioRegistryDigest !== actual.scenarioRegistryDigest ||
+    approved.policyRevision !== actual.policyRevision ||
+    approved.policyDigest !== actual.policyDigest ||
+    approved.policyEvaluationInstant !== actual.policyEvaluationInstant ||
+    approved.semanticSchemaDigest !== actual.semanticSchemaDigest ||
+    approved.providerSetDigest !== actual.providerSetDigest ||
+    approved.compilerDigest !== actual.compilerDigest ||
+    approved.plannerDigest !== actual.plannerDigest ||
+    approved.adapterRegistryDigest !== actual.adapterRegistryDigest ||
+    digestAgentCanonicalValue(approved.retentionRequest) !==
+      digestAgentCanonicalValue(actual.retentionRequest) ||
+    requiredCells(approved).length === 0
+  )
+    return false;
+  return retainsApprovedRequiredCells(approved, actual);
+};
+
+export const retainsWorkspaceAgentRegressionRequirements = (
   actual: VerificationPlan,
   requirements: readonly AgentRepairRegressionRequirement[]
 ): boolean => {
@@ -259,6 +288,15 @@ export const createWorkspaceAgentVerificationPlanBinding = (
     verificationRuns,
   } = input;
   if (
+    !validateVerificationPlan(projection.verificationPlan).ok ||
+    !validateVerificationPlan(actualPlan).ok
+  )
+    return blocked(
+      'AI-7006',
+      '/actualPlan',
+      'Verification Plan integrity must match its public owner digest before binding or compatibility checks.'
+    );
+  if (
     mutationReceipt.state !== 'acknowledged' ||
     !mutationReceipt.targetRevision ||
     !mutationReceipt.mutationDigest
@@ -306,7 +344,7 @@ export const createWorkspaceAgentVerificationPlanBinding = (
     );
   }
   const requirements = input.regressionRequirements ?? Object.freeze([]);
-  if (!retainsRegressionRequirements(actualPlan, requirements)) {
+  if (!retainsWorkspaceAgentRegressionRequirements(actualPlan, requirements)) {
     return blocked(
       'AI-6010',
       '/actualPlan/cells',
@@ -315,6 +353,17 @@ export const createWorkspaceAgentVerificationPlanBinding = (
   }
   let planCompatibility: AgentCommittedVerificationPlanBinding['planCompatibility'];
   if (mutationReceipt.kind === 'rollback') {
+    if (
+      !retainsWorkspaceAgentRollbackVerificationPlan(
+        projection.verificationPlan,
+        actualPlan
+      )
+    )
+      return blocked(
+        'AI-7006',
+        '/actualPlan',
+        'Rollback changed approved verification inputs or required checks.'
+      );
     planCompatibility = 'post-rollback';
   } else if (projection.verificationPlan.planDigest === actualPlan.planDigest) {
     planCompatibility = 'exact';
@@ -642,28 +691,6 @@ const utilizedBudget = (
     { repairRounds: 0, transactions: 0 }
   );
 
-const contextContainsFailure = (
-  pack: AgentContextPack,
-  closureReceipt: AgentVerificationClosureReceipt
-): boolean => {
-  const closure = pack.items.some(
-    ({ kind, contentDigest }) =>
-      kind === 'verification-closure' &&
-      contentDigest === closureReceipt.closureDigest
-  );
-  const evidence = new Set(
-    pack.items
-      .filter(({ kind }) => kind === 'verification-evidence')
-      .map(({ contentDigest }) => contentDigest)
-  );
-  return (
-    closure &&
-    closureReceipt.evidenceRefs
-      .filter(({ outcome }) => outcome !== 'passed')
-      .every(({ manifestDigest }) => evidence.has(manifestDigest))
-  );
-};
-
 const createBlockedRepairReceipt = (
   input: Readonly<{
     receiptId: string;
@@ -711,6 +738,8 @@ export type PrepareWorkspaceAgentRepairRoundInput = Readonly<{
   failedPlan: VerificationPlan;
   failedEvidence: readonly VerificationEvidence[];
   failureContextPack: AgentContextPack;
+  failureContextMaterials: readonly AgentContextMaterial[];
+  effectivePolicyDigest: CanonicalDigest;
   previousRepairReceipts: readonly AgentRepairRoundReceipt[];
   receiptId: string;
   repairRoundId: string;
@@ -781,10 +810,12 @@ export const prepareWorkspaceAgentRepairRound = (
   else if (
     input.failureContextPack.taskId !== input.task.spec.taskId ||
     input.failureContextPack.runId !== input.run.run.runId ||
-    input.failureContextPack.policyDigest !== input.task.spec.policyDigest ||
-    !contextContainsFailure(
+    input.failureContextPack.policyDigest !== input.effectivePolicyDigest ||
+    !workspaceAgentContextContainsRepairFailure(
       input.failureContextPack,
-      input.failedClosureReceipt
+      input.failureContextMaterials,
+      input.failedClosureReceipt,
+      { closure: input.failedClosure, evidence: input.failedEvidence }
     )
   )
     reason = 'regression-requirement-missing';
@@ -867,7 +898,7 @@ export const bindWorkspaceAgentRepairProposal = (
     approval.decision.decisionId === failedBinding.decisionId ||
     projection.planning.transactionDigest === input.failedTransactionDigest ||
     projection.verificationPlan.planDigest === failedBinding.actualPlanDigest ||
-    !retainsRegressionRequirements(
+    !retainsWorkspaceAgentRegressionRequirements(
       projection.verificationPlan,
       counterexamples.requirements
     )

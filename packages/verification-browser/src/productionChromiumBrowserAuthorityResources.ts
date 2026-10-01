@@ -1,9 +1,12 @@
 import { realpath } from 'node:fs/promises';
+import { isPlainObject } from '@prodivix/shared/safety';
 import {
   BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
   createBehaviorDeterministicControlPlan,
   digestBehaviorValue,
   type BehaviorScenarioProgram,
+  type BehaviorControlProfile,
+  type BehaviorFixtureSet,
 } from '@prodivix/behavior';
 import {
   EXECUTABLE_PROJECT_SNAPSHOT_ARTIFACT_MEDIA_TYPE,
@@ -15,6 +18,8 @@ import {
   type DeterministicRuntimeControlPlan,
   type ExecutableProjectSnapshot,
   type ExecutionBuildBundle,
+  type ExecutionAuthSessionFixtureResponse,
+  normalizeExecutionAuthSessionFixtureResponse,
 } from '@prodivix/runtime-core';
 import {
   canonicalJsonText,
@@ -223,7 +228,8 @@ const snapshotKeys = Object.freeze(
 );
 
 const validateExecutableSnapshot = (
-  snapshot: ExecutableProjectSnapshot
+  snapshot: ExecutableProjectSnapshot,
+  allowFixtureProjection = false
 ): ExecutableProjectSnapshot => {
   const actualKeys = Object.keys(snapshot).sort(compareUnicodeCodePoints);
   const allowedKeys = snapshotKeys.filter((key) =>
@@ -276,7 +282,8 @@ const validateExecutableSnapshot = (
   }
   if (
     reconstructed.dataMockProvision !== undefined ||
-    reconstructed.serverRuntimeMockProvision !== undefined
+    (reconstructed.serverRuntimeMockProvision !== undefined &&
+      !allowFixtureProjection)
   ) {
     throw new TypeError(
       'Production browser authority requires a no-fixture executable snapshot.'
@@ -339,6 +346,8 @@ const createRuntimePlan = (input: {
   cell: VerificationPlanCell;
   program: BehaviorScenarioProgram;
   snapshot: ExecutableProjectSnapshot;
+  controlProfile?: BehaviorControlProfile;
+  fixtureSets?: readonly BehaviorFixtureSet[];
 }): DeterministicRuntimeControlPlan => {
   const { programDigest, ...programIdentity } = input.program;
   if (
@@ -348,17 +357,16 @@ const createRuntimePlan = (input: {
     input.cell.controlProfileRef.digest !==
       input.program.controlProfileDigest ||
     input.program.executableSnapshotDigest !== input.snapshot.contentDigest ||
-    programDigest !== digestBehaviorValue(programIdentity) ||
-    input.program.fixtureSetDigests.length !== 0
+    programDigest !== digestBehaviorValue(programIdentity)
   ) {
     throw new TypeError(
-      'Production browser registration requires exact Chromium, target, snapshot, and no-fixture Program coordinates.'
+      'Production browser registration requires exact Chromium, target, snapshot, and Program coordinates.'
     );
   }
   const planned = createBehaviorDeterministicControlPlan({
     program: input.program,
-    profile: BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
-    fixtureSets: Object.freeze([]),
+    profile: input.controlProfile ?? BEHAVIOR_DETERMINISTIC_CONTROL_PRESET,
+    fixtureSets: input.fixtureSets ?? Object.freeze([]),
     cell: Object.freeze({
       id: `${input.cell.id}:remote`,
       frameworkTarget: input.cell.frameworkTarget,
@@ -373,11 +381,10 @@ const createRuntimePlan = (input: {
   });
   if (
     planned.status !== 'ready' ||
-    planned.plan.network.fixtures.length !== 0 ||
-    planned.plan.storage.bootstrapFixtureIds.length !== 0
+    planned.plan.network.mode !== 'fixture-only'
   ) {
     throw new TypeError(
-      'Production browser deterministic controls require an exact no-fixture ready Plan.'
+      'Production browser deterministic controls require an exact hermetic ready Plan.'
     );
   }
   return planned.plan;
@@ -493,14 +500,93 @@ export const validateProductionBrowserInputs = (input: {
   program: BehaviorScenarioProgram;
   snapshot: ExecutableProjectSnapshot;
   buildBundle: ExecutionBuildBundle;
+  controlProfile?: BehaviorControlProfile;
+  fixtureSets?: readonly BehaviorFixtureSet[];
+  authSessionFixtureBinding?: Omit<
+    ExecutionAuthSessionFixtureResponse,
+    'invocationId' | 'attempt'
+  >;
+  fixtureProjectionReceiptDigest?: string;
 }): ValidatedProductionBrowserInputs => {
-  const snapshot = validateExecutableSnapshot(input.snapshot);
+  const binding = input.authSessionFixtureBinding;
+  if (binding) {
+    normalizeExecutionAuthSessionFixtureResponse({
+      ...binding,
+      invocationId: 'validation:fixture',
+      attempt: 1,
+    });
+    assertDigest(
+      input.fixtureProjectionReceiptDigest ?? '',
+      'Compiler fixture projection receipt'
+    );
+    const set = input.fixtureSets?.find(
+      (set) => set.id === binding.fixtureSetId
+    );
+    const fixture = set?.fixtures.find(
+      (fixture) => fixture.id === binding.fixtureId
+    );
+    const provision = input.snapshot.serverRuntimeMockProvision;
+    if (
+      !isPlainObject(provision) ||
+      !isPlainObject(provision.principal) ||
+      !Array.isArray(provision.permissions) ||
+      provision.permissions.some(
+        (permission) =>
+          !isPlainObject(permission) ||
+          typeof permission.allowed !== 'boolean' ||
+          typeof permission.permissionId !== 'string'
+      )
+    )
+      throw new TypeError('Production Auth fixture provision is invalid.');
+    if (
+      !set ||
+      digestBehaviorValue(set) !== binding.fixtureSetDigest ||
+      !fixture ||
+      fixture.target.kind !== 'auth-session' ||
+      fixture.target.resourceId !== binding.resourceId ||
+      fixture.inputDigest !== binding.inputDigest ||
+      digestBehaviorValue(fixture.outcome) !== binding.outcomeDigest ||
+      !provision?.principal ||
+      provision.principal.providerId !== binding.providerId ||
+      provision.principal.principalId !== binding.principalId ||
+      binding.providerId !== binding.resourceId ||
+      fixture.outcome.kind !== 'result' ||
+      !sameCanonicalJson(fixture.outcome.value, {
+        principalId: binding.principalId,
+        permissionIds: binding.permissionIds,
+      }) ||
+      !sameCanonicalJson(
+        provision.permissions
+          .filter((permission) => permission.allowed)
+          .map((permission) => permission.permissionId),
+        binding.permissionIds
+      )
+    )
+      throw new TypeError(
+        'Production auth fixture transport drifted from its canonical controls and executable provision.'
+      );
+  } else if (input.fixtureProjectionReceiptDigest !== undefined)
+    throw new TypeError('Production fixture projection has no Auth transport.');
+  const snapshot = validateExecutableSnapshot(input.snapshot, Boolean(binding));
   const entry = validateBuildBundle(snapshot, input.buildBundle);
   const plan = createRuntimePlan({
     cell: input.cell,
     program: input.program,
     snapshot,
+    ...(input.controlProfile ? { controlProfile: input.controlProfile } : {}),
+    ...(input.fixtureSets ? { fixtureSets: input.fixtureSets } : {}),
   });
+  if (
+    plan.network.fixtures.length > 1 ||
+    (plan.network.fixtures.length === 1 &&
+      (!binding ||
+        plan.network.fixtures[0]!.target.kind !== 'auth-session' ||
+        plan.network.fixtures[0]!.id !== binding.fixtureId)) ||
+    (plan.network.fixtures.length === 0 && binding)
+  )
+    throw new TypeError(
+      'Production Browser transport requires zero requests or one exact Auth fixture.'
+    );
   const preview = createPreviewResources({
     program: input.program,
     snapshot,
@@ -528,10 +614,25 @@ export const scanProductionBrowserInputs = async (input: {
   buildBundle: ExecutionBuildBundle;
   program: BehaviorScenarioProgram;
   securityObservationBytes?: Uint8Array;
+  controlProfile?: BehaviorControlProfile;
+  fixtureSets?: readonly BehaviorFixtureSet[];
   signal: VerificationAbortSignal;
 }): Promise<string> => {
   assertDigest(input.scanner.authorityDigest, 'Canary scanner authority');
   const sources = [
+    {
+      sourceKind: 'behavior-program' as const,
+      sourceId: 'canonical-runtime-controls',
+      contents: new TextEncoder().encode(
+        canonicalJsonText({
+          controlProfile: input.controlProfile ?? null,
+          fixtureSets: input.fixtureSets ?? [],
+          serverRuntimeMockProvision:
+            input.snapshot.serverRuntimeMockProvision ?? null,
+          dataMockProvision: input.snapshot.dataMockProvision ?? null,
+        })
+      ),
+    },
     ...input.snapshot.files.map((file) => ({
       sourceKind: 'executable-source' as const,
       sourceId: file.path,

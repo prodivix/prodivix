@@ -56,11 +56,18 @@ type verificationPostgreSQLHarness struct {
 }
 
 func prepareVerificationPostgreSQLHarness(t *testing.T) verificationPostgreSQLHarness {
+	return prepareVerificationPostgreSQLHarnessWithPlanning(t, nil)
+}
+
+func prepareVerificationPostgreSQLHarnessWithPlanning(t *testing.T, amend func(*proposalRepositoryVector)) verificationPostgreSQLHarness {
 	t.Helper()
 	databaseA, databaseB := openAgentPostgreSQL(t)
 	seedAgentWorkspace(t, databaseA)
 	repositoryA, repositoryB := NewRepository(databaseA), NewRepository(databaseB)
 	proposal := readProposalRepositoryVector(t)
+	if amend != nil {
+		amend(&proposal)
+	}
 	verification := readVerificationRepositoryVector(t)
 	ctx := context.Background()
 	user := PrincipalAuthority{Kind: "user", PrincipalID: "user.test", ProjectID: "project.catalog", WorkspaceID: "workspace.catalog"}

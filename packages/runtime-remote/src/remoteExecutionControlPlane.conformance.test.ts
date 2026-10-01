@@ -871,6 +871,43 @@ describe('remote execution control plane conformance', () => {
     ).toHaveLength(2);
   });
 
+  it('accepts a second cancellation identity while cancellation is pending', async () => {
+    const { controlPlane, repository } = createHarness();
+    const started = await start(controlPlane);
+    const executionId = started.execution.executionId;
+    const claimed = await controlPlane.claimNext({
+      workerId: 'worker-1',
+      providerId: remoteFixtureProvider.id,
+      leaseDurationMs: 100,
+    });
+    await controlPlane.transition({
+      executionId,
+      workerId: 'worker-1',
+      leaseToken: claimed!.lease.token,
+      status: 'running',
+    });
+    const executionClient = client(controlPlane, principal());
+    expect(
+      (
+        await executionClient.cancel({
+          executionId,
+          cancellationId: 'cancel-a',
+        })
+      ).result.status
+    ).toBe('accepted');
+    const cursor = (await repository.get(executionId))!.record.latestCursor;
+    for (const cancellationId of ['cancel-b', 'cancel-a', 'cancel-b']) {
+      expect(
+        (await executionClient.cancel({ executionId, cancellationId })).result
+          .status
+      ).toBe('already-requested');
+    }
+    const stored = (await repository.get(executionId))!;
+    expect(stored.record.status).toBe('cancelling');
+    expect(stored.record.latestCursor).toBe(cursor);
+    expect(stored.cancellationIds).toEqual(['cancel-a', 'cancel-b']);
+  });
+
   it('replays artifact grants as authority-free canonical Job events', async () => {
     const { controlPlane } = createHarness();
     const started = await start(controlPlane, 'request-artifact');

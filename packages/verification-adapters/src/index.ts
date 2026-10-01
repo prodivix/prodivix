@@ -14,6 +14,7 @@ export {
 } from './coverageSummaryProjection';
 export * from './firstPartyVerificationAdapters';
 export * from './controlledStaticToolchainProductionClient';
+export * from './controlledStaticResourceCleanup';
 export * from './controlledStaticToolchainProtocol';
 export * from './verificationAdapterDescriptors';
 export * from './verificationAdapterInputs';

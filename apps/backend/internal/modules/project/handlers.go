@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -23,7 +24,7 @@ const (
 
 type WorkspaceBootstrapper interface {
 	CreateProjectWorkspace(ctx context.Context, ownerID string, name string, description string, resourceType ResourceType, initialPIR json.RawMessage) (*Project, error)
-	PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string) (*Project, error)
+	PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string, expected *PublicationExpected) (*Project, error)
 }
 
 type Handler struct {
@@ -190,8 +191,34 @@ func (handler *Handler) HandlePublishProject(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "API-5001", "Could not publish project.")
 		return
 	}
-	project, err := handler.workspaceModule.PublishProjectWorkspace(c.Request.Context(), user.ID, c.Param("id"))
+	var expected *PublicationExpected
+	if c.Request.Body != nil {
+		decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxProjectCreateRequestBytes))
+		decoder.DisallowUnknownFields()
+		var request struct {
+			Expected *PublicationExpected `json:"expected"`
+		}
+		if err := decoder.Decode(&request); err != nil && !errors.Is(err, io.EOF) {
+			respondError(c, http.StatusBadRequest, "API-4001", "Invalid publication revision request.")
+			return
+		} else if err == nil {
+			if request.Expected == nil || decoder.Decode(new(any)) != io.EOF {
+				respondError(c, http.StatusBadRequest, "API-4001", "An exact publication revision is required for a publication request body.")
+				return
+			}
+			expected = request.Expected
+			if !validPublicationExpected(expected) {
+				respondError(c, http.StatusBadRequest, "API-4001", "Invalid publication revision vector.")
+				return
+			}
+		}
+	}
+	project, err := handler.workspaceModule.PublishProjectWorkspace(c.Request.Context(), user.ID, c.Param("id"), expected)
 	if err != nil {
+		if errors.Is(err, ErrPublicationRevisionConflict) {
+			respondError(c, http.StatusConflict, "WKS-4003", "The saved Workspace changed. Refresh publication status and review the new revision before publishing.")
+			return
+		}
 		if errors.Is(err, ErrProjectNotFound) {
 			respondError(c, http.StatusNotFound, "API-4004", "Project not found.")
 			return

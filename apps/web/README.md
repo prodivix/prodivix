@@ -2,7 +2,7 @@
 
 Prodivix 的浏览器端编辑器与产品组合层，基于 React 19、TypeScript 和 Vite。Web 应用负责蓝图、节点图、动画、资源、Issues、冲突处理等交互界面，并把领域行为组合到独立的 `@prodivix/*` Core package；它不再拥有 Workspace、PIR、Router、Renderer 或 Runtime 的第二套核心实现。
 
-当前产品阶段为 **G0 Passed / G1 Foundation**。G0 的 Truth & Change Kernel 已通过 `pnpm run verify:g0` 验证；代码与视觉混合作者环境仍处于基础建设阶段。
+当前阶段以 [`current-status.md`](../../specs/roadmap/current-status.md) 为唯一来源：**G0–G3 Passed，G4 In Progress**。G4 V0–V9 implementation 与 exact-commit deterministic durable CI 已通过；真实 Provider qualification 与 Global G4 Closure 仍为外部证据 Pending。
 
 ## 当前写入链路
 
@@ -24,7 +24,7 @@ Editor surface
 ```text
 apps/web/
 ├── src/
-│   ├── ai/                 # AI Provider 与产品 UI 组合
+│   ├── ai/                 # plan-only HTTP adapter 与产品 UI 偏好
 │   ├── auth/               # 鉴权状态与页面
 │   ├── community/          # 社区浏览与发布相关页面
 │   ├── components/         # Web 应用通用组件
@@ -65,11 +65,12 @@ apps/web/
 
 ## 当前能力边界
 
-- Blueprint、NodeGraph 与 Animation 已有 Web 编辑界面和独立领域 package，但完整行为组合、生命周期、冲突语义与浏览器验证仍属于后续 Gate。
-- CodeArtifact、CodeReference、CodeSlot 和 Authoring Registry 已有基础；真实 Language Service、visual/code round-trip 与完整代码工作区尚未闭环。
-- React/Vite Workspace export 已进入 G0 Golden 的无浏览器验证，但独立导出项目的 install、typecheck、test、browser smoke 和 visual regression 仍是 G1+ 工作。
-- AI Provider、streaming 与工具基础不等于可直接写入 Workspace；生产级 AI 写入仍必须复用同一 Command、outbox、验证和审阅链路。
-- React/Vite 是当前 Golden 基线。其他框架 target 仍属于后续路线图，不应视为已交付能力。
+- Blueprint、NodeGraph 与 Animation 的跨领域行为组合、Route lifecycle、冲突语义、reduced motion 和受控浏览器 Golden 已进入 G3 closure。
+- CodeArtifact、CodeReference、CodeSlot、Workspace Semantic Index、TypeScript Language Service、Shader 语义，以及受控 visual/code round-trip 使用独立 owner；GPU 编译和执行仍受设备与 Runtime capability 约束。
+- React/Vite 与受控 Vue/Vite target 已实现。导出结果的 install、typecheck、test、browser 与 visual Gate 证据由对应 Golden 与 roadmap/evidence 文档维护。
+- Blueprint 草案提供本地 Mock 和认证的服务器 plan-only 接口。浏览器设置只保存公开 provider/model 选择；provider endpoint 与凭据在服务器配置，未配置时显示明确提示。
+- Agent 的生产写入必须复用 typed proposal、domain dry-run、exact 用户审批、Command/Transaction、Durable Outbox 与 Atomic Commit。deterministic CI 通过不代替真实模型资格评测。
+- 普通 Task 创建先经过认证的服务端 admission；Web 使用 AI owner 校验精确不可变 Task、有效策略、grant 和 canonical 摘要，最多等待 60 秒，支持取消与项目切换中止。通过 admission 后才创建 Task，并自动发现 durable Run；admission 不代替人工审批。
 
 ## Plugin Sandbox 配置
 

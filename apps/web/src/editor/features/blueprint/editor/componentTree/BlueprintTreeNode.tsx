@@ -179,6 +179,8 @@ export function BlueprintTreeNode({
             onToggle(location);
           }}
           onKeyDown={(event) => {
+            if (event.defaultPrevented || event.target !== event.currentTarget)
+              return;
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
               onSelect(location);

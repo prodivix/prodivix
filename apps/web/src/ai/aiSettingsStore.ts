@@ -1,45 +1,81 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { ProdivixAiSettings } from '@prodivix/ai';
-import {
-  createDefaultProdivixAiSettings,
-  normalizeProdivixAiSettings,
-} from '@prodivix/ai';
+import type { AiDraftExecutionBudget } from '@prodivix/ai';
 import { isPlainObject } from '@prodivix/shared/safety';
 
-type AiSettingsStore = {
-  settings: ProdivixAiSettings;
-  setSettings: (settings: ProdivixAiSettings) => void;
-  resetSettings: () => void;
+/** Browser preferences select public server authority; they never configure transport. */
+export type BlueprintAssistantPreferences = {
+  provider: 'mock' | 'server';
+  providerId?: string;
+  modelId?: string;
+  budget?: AiDraftExecutionBudget;
+};
+const defaults = (): BlueprintAssistantPreferences => ({ provider: 'mock' });
+const normalizePreferences = (
+  value: unknown
+): BlueprintAssistantPreferences => {
+  if (!isPlainObject(value) || value.provider !== 'server') return defaults();
+  const budget = isPlainObject(value.budget) ? value.budget : {};
+  return {
+    provider: 'server',
+    providerId:
+      typeof value.providerId === 'string'
+        ? value.providerId.slice(0, 256)
+        : '',
+    modelId:
+      typeof value.modelId === 'string' ? value.modelId.slice(0, 256) : '',
+    budget: {
+      temperature:
+        typeof budget.temperature === 'number' &&
+        Number.isFinite(budget.temperature) &&
+        budget.temperature >= 0 &&
+        budget.temperature <= 2
+          ? budget.temperature
+          : 0.2,
+      maxOutputTokens:
+        typeof budget.maxOutputTokens === 'number' &&
+        Number.isSafeInteger(budget.maxOutputTokens) &&
+        budget.maxOutputTokens > 0 &&
+        budget.maxOutputTokens <= 32768
+          ? budget.maxOutputTokens
+          : 4096,
+      timeoutMs:
+        typeof budget.timeoutMs === 'number' &&
+        Number.isSafeInteger(budget.timeoutMs) &&
+        budget.timeoutMs > 0 &&
+        budget.timeoutMs <= 300000
+          ? budget.timeoutMs
+          : 60000,
+    },
+  };
 };
 
-/**
- * Persists AI provider preferences only. The provider credential lives in
- * `useAiCredentialStore` and never reaches `localStorage`; normalizing on both
- * write and read also drops a key an older client may already have stored.
- */
+type AiSettingsStore = {
+  settings: BlueprintAssistantPreferences;
+  setSettings(settings: BlueprintAssistantPreferences): void;
+  resetSettings(): void;
+};
+
 export const useAiSettingsStore = create<AiSettingsStore>()(
   persist(
     (set) => ({
-      settings: createDefaultProdivixAiSettings(),
+      settings: defaults(),
       setSettings: (settings) =>
-        set({ settings: normalizeProdivixAiSettings(settings) }),
-      resetSettings: () => set({ settings: createDefaultProdivixAiSettings() }),
+        set({ settings: normalizePreferences(settings) }),
+      resetSettings: () => set({ settings: defaults() }),
     }),
     {
       name: 'prodivix-ai-settings',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        settings: normalizeProdivixAiSettings(state.settings),
+        settings: normalizePreferences(state.settings),
       }),
       merge: (persisted, current) => ({
         ...current,
-        settings: normalizeProdivixAiSettings(
+        settings: normalizePreferences(
           isPlainObject(persisted) ? persisted.settings : undefined
         ),
       }),
-      // Rewriting on load erases a credential an older client left on disk instead of
-      // leaving it there until the user happens to save settings again.
       onRehydrateStorage: () => (state) => state?.setSettings(state.settings),
     }
   )

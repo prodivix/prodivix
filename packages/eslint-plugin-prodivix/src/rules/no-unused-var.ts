@@ -4,7 +4,7 @@ const rule: Rule.RuleModule = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'disallow unused PIR variables',
+      description: 'disallow unused local variables in code authoring modules',
       category: 'Best Practices',
       recommended: true,
     },
@@ -23,7 +23,18 @@ const rule: Rule.RuleModule = {
               (definition) => definition.type === 'Variable'
             );
             const identifier = variable.identifiers[0];
-            if (declaration && identifier && variable.references.length === 0) {
+            if (
+              declaration &&
+              identifier &&
+              !variable.references.some((reference) => reference.isRead()) &&
+              !context.sourceCode
+                .getAncestors(declaration.node)
+                .some(
+                  (node) =>
+                    node.type === 'ExportNamedDeclaration' ||
+                    node.type === 'ExportDefaultDeclaration'
+                )
+            ) {
               context.report({
                 node: identifier,
                 messageId: 'unused',

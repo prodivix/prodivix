@@ -15,6 +15,11 @@ import {
 } from './agentRunFacts';
 
 const maximumAuditExportBytes = 8_388_608;
+const predatesAnEvent = (
+  exportedAt: string,
+  events: readonly AgentControlEvent[]
+): boolean =>
+  events.some((event) => Date.parse(exportedAt) < Date.parse(event.occurredAt));
 
 export const verifyAgentControlEventChain = (
   events: readonly AgentControlEvent[]
@@ -43,7 +48,7 @@ export const createAgentAuditExport = (
   if (
     !verifyAgentControlEventChain(events) ||
     !isAgentControlInstant(exportedAt) ||
-    Date.parse(exportedAt) < Date.parse(events.at(-1)!.occurredAt)
+    predatesAnEvent(exportedAt, events)
   ) {
     throw new TypeError(
       'Agent audit export identity or event chain is invalid.'
@@ -106,6 +111,7 @@ export const isAgentAuditExport = (
     value.chainRootDigest !== value.events[0]?.eventDigest ||
     value.chainHeadDigest !== value.events.at(-1)?.eventDigest ||
     !isAgentControlInstant(value.exportedAt) ||
+    predatesAnEvent(value.exportedAt, value.events) ||
     !isAgentCanonicalDigest(value.exportDigest)
   ) {
     return false;

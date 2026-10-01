@@ -968,6 +968,90 @@ const adapter = (overrides: Readonly<Record<string, unknown>> = {}) =>
   new HttpAgentEvaluationDurableShardLedger(client(overrides), plan);
 
 describe('HttpAgentEvaluationDurableShardLedger', () => {
+  it('accepts immutable budget replay after unrelated ledger progress', async () => {
+    const first = reservedBudget();
+    const second = reserveAgentBudget(first.state, {
+      reservationId: 'reservation.second',
+      expectedRevision: 1,
+      demand: demand(),
+      reservedAt: SETTLED_AT,
+    });
+    if (!second.ok) throw new Error('second reservation failed');
+    const firstExport = reservedBudgetResponse().reservations[0]!;
+    const secondExport = {
+      reservationId: second.reservation.reservationId,
+      ledgerRevision: 2,
+      demandDigest: second.reservation.demandDigest,
+      demand: second.reservation.demand,
+      reservedAt: second.reservation.reservedAt,
+    };
+    const projection = {
+      ...reservedBudgetResponse(),
+      revision: 2,
+      updatedAt: SETTLED_AT,
+      reservations: [firstExport, secondExport],
+      unsettledReservationIds: [
+        first.reservation.reservationId,
+        second.reservation.reservationId,
+      ],
+    };
+    const subject = adapter({
+      getBudget: async () => projection,
+      reserveBudget: async () => ({ ...firstExport, replayed: true }),
+    });
+    const replay = {
+      reservationId: first.reservation.reservationId,
+      expectedRevision: 2,
+      demand: first.reservation.demand,
+      reservedAt: RESERVED_AT,
+    };
+    await expect(subject.reserveBudget(replay)).resolves.toMatchObject({
+      ok: true,
+      state: { revision: 2 },
+    });
+    const drifted = adapter({
+      getBudget: async () => projection,
+      reserveBudget: async () => ({
+        ...firstExport,
+        ledgerRevision: 2,
+        replayed: true,
+      }),
+    });
+    await expect(drifted.reserveBudget(replay)).rejects.toThrow('invalid');
+    const reconciled = reconcileAgentBudgetReservation(first.state, {
+      reservationId: first.reservation.reservationId,
+      expectedRevision: 1,
+      reason: 'worker-loss',
+      settledAt: SETTLED_AT,
+    });
+    if (!reconciled.ok || !reconciled.reservation.settlement)
+      throw new Error('reconciliation failed');
+    const settlement = {
+      reservationId: first.reservation.reservationId,
+      ledgerRevision: 2,
+      settlementDigest: reconciled.reservation.settlement.settlementDigest,
+      settlement: reconciled.reservation.settlement,
+      settledAt: SETTLED_AT,
+    };
+    const reconcileSubject = adapter({
+      getBudget: async () => ({
+        ...projection,
+        revision: 3,
+        reservations: [firstExport, { ...secondExport, ledgerRevision: 3 }],
+        settlements: [settlement],
+        unsettledReservationIds: ['reservation.second'],
+      }),
+      reconcileBudget: async () => ({ ...settlement, replayed: true }),
+    });
+    await expect(
+      reconcileSubject.reconcileBudget({
+        reservationId: first.reservation.reservationId,
+        expectedRevision: 3,
+        reason: 'worker-loss',
+        settledAt: SETTLED_AT,
+      })
+    ).resolves.toMatchObject({ ok: true, state: { revision: 3 } });
+  });
   it('strictly replays budget exports and rejects extra fields', () => {
     expect(
       decodeAgentEvaluationDurableBudget(emptyBudgetResponse(), plan)
@@ -1384,6 +1468,44 @@ describe('HttpAgentEvaluationDurableShardLedger', () => {
     expect(committed.attempt).toEqual(fixture.attempt);
     expect(committed.budgetLedger).toEqual(expectedSettlement.state);
     expect(putAttemptCommit).toHaveBeenCalledTimes(1);
+
+    const unrelated = reserveAgentBudget(expectedSettlement.state, {
+      reservationId: 'reservation.other-worker',
+      expectedRevision: 2,
+      demand: demand(),
+      reservedAt: SETTLED_AT,
+    });
+    if (!unrelated.ok) throw new Error('unrelated reservation failed');
+    const acknowledgement = await putAttemptCommit.mock.results[0]!.value;
+    const replaySubject = adapter({
+      getBudget: async () => ({
+        ...reservedBudgetResponse(),
+        revision: 3,
+        updatedAt: SETTLED_AT,
+        reservations: [
+          ...reservedBudgetResponse().reservations,
+          {
+            reservationId: unrelated.reservation.reservationId,
+            ledgerRevision: 3,
+            demandDigest: unrelated.reservation.demandDigest,
+            demand: unrelated.reservation.demand,
+            reservedAt: SETTLED_AT,
+          },
+        ],
+        settlements: [acknowledgement.budgetSettlement],
+        unsettledReservationIds: [unrelated.reservation.reservationId],
+      }),
+      putAttemptCommit: async () => ({ ...acknowledgement, replayed: true }),
+    });
+    const replayed = await replaySubject.commitAttemptEvidence({
+      reservationId: reservation.reservation.reservationId,
+      expectedRevision: 3,
+      actual: demand(),
+      settledAt: SETTLED_AT,
+      ...fixture,
+    });
+    expect(replayed.replayed).toBe(true);
+    expect(replayed.budgetLedger).toEqual(unrelated.state);
 
     const drifted = adapter({
       getBudget: vi.fn(async () => reservedBudgetResponse()),

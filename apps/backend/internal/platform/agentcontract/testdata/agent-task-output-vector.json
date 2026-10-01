@@ -1,0 +1,19 @@
+{
+  "wireVersion": 1,
+  "factType": "task-output",
+  "value": {
+    "contentDigest": "sha256-1c9a51f34f3d723b30d6b6ed3a7636600b6a6224cf050a344316d000b103051f",
+    "contextPackDigest": "sha256-28b8c501c87f18578903305c7401cd4442a59d22af37a90fc558e694189456fc",
+    "effectivePolicyDigest": "sha256-bc40719b5aa2872e6a4fba8650b84261560365d2870e89236c7248dc1d15da94",
+    "generation": 1,
+    "kind": "answer",
+    "modelInvocationId": "invocation.runtime",
+    "outputId": "invocation.runtime.output",
+    "projectPolicyDigest": "sha256-e7c89ffc9689a09e867742b496dba4840a899da842aa13a93dfc400963258d7d",
+    "recordedAt": "2026-10-01T00:00:01.000Z",
+    "runId": "run.runtime",
+    "taskId": "task.runtime",
+    "text": "The current count is 1. 计数为一。😀",
+    "outputDigest": "sha256-29be1f3fc90aeed0d1c037a88bbe48483280ce8be753ede93cee5c5f0b4761e1"
+  }
+}

@@ -353,23 +353,47 @@ export const createRouteLifecycleCoordinator = (
         if (cancelled()) throw new Error('navigation-cancelled');
 
         const outgoingMatch = current;
-        [outgoingScope, incomingScope] = await Promise.all([
+        const preparationCancellation = createCancellation(cancellation.signal);
+        let preparationFailed = false;
+        let preparationFailure: unknown;
+        const prepare = <T>(operation: () => T | Promise<T>): Promise<T> =>
+          Promise.resolve()
+            .then(operation)
+            .catch((error: unknown) => {
+              if (!preparationFailed) {
+                preparationFailed = true;
+                preparationFailure = error;
+                preparationCancellation.abort('route-scope-preparation-failed');
+              }
+              throw error;
+            });
+        const preparations = await Promise.allSettled([
           outgoingMatch
-            ? ports.scopes.prepare({
-                role: 'outgoing',
-                match: outgoingMatch,
-                generation: navigationGeneration,
-                signal: cancellation.signal,
-              })
+            ? prepare(() =>
+                ports.scopes.prepare({
+                  role: 'outgoing',
+                  match: outgoingMatch,
+                  generation: navigationGeneration,
+                  signal: preparationCancellation.signal,
+                })
+              )
             : Promise.resolve(null),
-          ports.scopes.prepare({
-            role: 'incoming',
-            match,
-            generation: navigationGeneration,
-            ...(loaded.data !== undefined ? { data: loaded.data } : {}),
-            signal: cancellation.signal,
-          }),
-        ]);
+          prepare(() =>
+            ports.scopes.prepare({
+              role: 'incoming',
+              match,
+              generation: navigationGeneration,
+              ...(loaded.data !== undefined ? { data: loaded.data } : {}),
+              signal: preparationCancellation.signal,
+            })
+          ),
+        ] as const);
+        const outgoing = preparations[0]!;
+        const incoming = preparations[1]!;
+        if (outgoing.status === 'fulfilled') outgoingScope = outgoing.value;
+        if (incoming.status === 'fulfilled') incomingScope = incoming.value;
+        if (preparationFailed) throw preparationFailure;
+        if (!incomingScope) throw new Error('route-incoming-scope-missing');
         await publish({
           kind: 'scopes-prepared',
           ...(outgoingMatch ? { fromPath: outgoingMatch.path } : {}),

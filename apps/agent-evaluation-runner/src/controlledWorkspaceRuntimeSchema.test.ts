@@ -18,6 +18,50 @@ const objectSchema = (
 });
 
 describe('controlled Workspace schema compilation', () => {
+  it.each([-1, 129, 1.5, '1'])(
+    'rejects invalid object property bounds %s before argument validation',
+    (bound) => {
+      for (const keyword of ['minProperties', 'maxProperties']) {
+        const schema = {
+          ...(objectSchema([], { value: { type: 'null' } }) as Record<
+            string,
+            AgentJsonValue
+          >),
+          [keyword]: bound,
+        };
+        expect(compileControlledWorkspaceToolSchema(schema)).toEqual({
+          ok: false,
+          code: 'schema-invalid',
+        });
+        expect(validateControlledWorkspaceToolArguments(schema, {})).toEqual({
+          ok: false,
+          code: 'schema-invalid',
+        });
+      }
+    }
+  );
+  it('accepts zero and maximum object property bounds', () => {
+    const properties = Object.fromEntries(
+      Array.from({ length: 128 }, (_, index) => [`p${index}`, { type: 'null' }])
+    );
+    expect(
+      compileControlledWorkspaceToolSchema({
+        ...(objectSchema([], properties) as Record<string, AgentJsonValue>),
+        minProperties: 0,
+        maxProperties: 128,
+      }).ok
+    ).toBe(true);
+    expect(
+      validateControlledWorkspaceToolArguments(
+        {
+          ...(objectSchema([], {}) as Record<string, AgentJsonValue>),
+          minProperties: 0,
+          maxProperties: 0,
+        },
+        {}
+      )
+    ).toEqual({ ok: true });
+  });
   it('compiles the complete tree once and validates exact bounded arguments', () => {
     const schema = objectSchema(['name', 'items'], {
       name: {

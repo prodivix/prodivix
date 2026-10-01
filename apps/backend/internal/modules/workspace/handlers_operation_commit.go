@@ -17,9 +17,15 @@ import (
 const maxWorkspaceOperationCommitRequestBytes int64 = 16 * 1024 * 1024
 
 func decodeWorkspaceOperationCommitRequest(c *gin.Context) (WorkspaceOperationCommitRequest, error) {
+	return DecodeWorkspaceOperationCommitRequest(c.Request.Body)
+}
+
+// DecodeWorkspaceOperationCommitRequest keeps authenticated UI and approved
+// server workers on the same strict Atomic Commit wire admission boundary.
+func DecodeWorkspaceOperationCommitRequest(source io.Reader) (WorkspaceOperationCommitRequest, error) {
 	var request WorkspaceOperationCommitRequest
 	var payload json.RawMessage
-	wireDecoder := json.NewDecoder(c.Request.Body)
+	wireDecoder := json.NewDecoder(source)
 	if err := wireDecoder.Decode(&payload); err != nil {
 		return request, err
 	}

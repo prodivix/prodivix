@@ -2,9 +2,9 @@
 
 ## 状态
 
-- EvidenceStatus：V0–V9 Local + Exact-commit Deterministic CI Evidence Passed；Real-model Evaluation and Satisfied Closure Evidence Pending
+- EvidenceStatus：V0–V9 Historical Exact-commit Deterministic CI Passed；Current Working-tree Local verify:g4 Passed；Current Repair Remote CI, Real-model Evaluation and Satisfied Closure Evidence Pending
 - ProductGateStatus：In Progress
-- 日期：2026-08-03
+- 日期：2026-10-01
 - Canonical milestone：
   [`g4-verified-agentic-development-milestones.md`](g4-verified-agentic-development-milestones.md)
 - Contract set：
@@ -534,3 +534,125 @@ artifact 不能只上传 human-readable log；必须有 strict machine-readable 
   deterministic/rootless durable promotion，同时明确拒绝伪造 Global G4 closure。
 - Pending：三个真实 native Provider current 14,040 journeys、protected holdout、actual usage/cost、blind human review、
   未过期 model-eval与最终 satisfied `verify:g4:closure` artifact。
+
+## 2026-10-01 ordinary Runtime G3 driver server local evidence
+
+状态为 **Implemented / Local PostgreSQL Passed**。当前工作树的 Backend PostgreSQL、driver HTTP 与本地
+actual Browser owner 验证已通过，详见本轮 aggregate 记录。本批 exact-commit remote CI，以及
+Node 22.23.1 / Linux / rootless Podman adopted image / TLS / Ed25519 signer / Backend attestation policy /
+Browser authority 的完整部署组合资格仍须独立验证。没有使用评测 private auth 或外部模型请求。
+
+使用独立临时 PostgreSQL 的 `PRODIVIX_BACKEND_POSTGRES_TEST_URL`，执行
+`go test -short -count=1 -v -run '^TestRuntimeDriver' ./internal/modules/agent ./internal/modules/verification`：
+Agent 4 tests Passed（18.201s），Verification 2 tests Passed（6.664s）。覆盖 canonical Plan/current ACK context、
+exact request replay/expired lease、consumed cancellation link、G3 terminal 与实际 driver cleanup receipt fence、
+running-cell public cancellation report、never-dispatched cancellation、AttemptGrant 准入/跨时间 exact replay、
+独立 staging upload retry、取消后 staging 退休与 final Evidence commit 最后授权回调失败的原子 rollback。
+实际 CPU/Browser 执行和部署环境由 ordinary driver composition 的相应 Gate 证明；本节只证明服务端 owner 边界。
+
+## 2026-10-01 ordinary repair delegation and shared driver budget local evidence
+
+状态为 **Implemented / Local PostgreSQL Passed**。这是当前工作树的本地证据；exact-commit remote CI、实际
+Provider qualification、ordinary driver 完整生产 rootless/browser 部署组合资格与 Global G4 Exit 仍须由对应独立证据证明。
+
+真实 PostgreSQL 18.4 隔离 schema 执行 `go test -count=1 ./internal/modules/agent -run
+'^TestRuntimeDriverCumulative|^TestRuntimeDriverWhole|^TestRuntimeRepair|^TestRuntimeAdmission'`，35.666s Passed。
+覆盖原始 public failed Closure 持久化、expired lease 拒绝、全维剩余预算与 whole-parent wall time、一次性
+parent-to-child delegation、48h exact request ACK-loss replay、不同 request conflict、foreign owner 与耗尽时
+零 delegation、fresh Task admission/新的 grant/Task owner 写入，以及非 UTC host 的 admission UTC 重读。
+public initial-admission 拒绝通过改 Task ID 前缀自填 derived lineage 绕过 repair budget。
+
+driver budget Gate 覆盖不同 cell 和 VerificationRun 共用的 artifact capacity、同 candidate 重试不双扣、
+整条 Run 的墙钟耗尽、AttemptGrant 不能超过 Task deadline，以及预算耗尽后真实 cleanup 仍可执行。
+Go public repair request codec 和 counterexamples/stable-cell projection 与自然生成的 TypeScript canonical
+vector 一致；future wire、digest、lineage、排序和未知 authority 字段都 fail closed。该 vector 只证明契约，
+不作为 real-model 或 G3 execution Evidence。
+
+同一真实 PostgreSQL 环境的整套 `go test -count=1 ./...` exit 0：Agent 235.065s、Verification 69.290s、
+Workspace 49.682s、Database 152.278s，其余 Backend packages 全部 Passed 或无测试。
+日志为本次工作树的 `backend-final-postgres.log`。该整套二进制早于最后的 driver clock fence、cleanup
+replay 与短期 grant expiry 修正；这些最终变更另由实际 PostgreSQL focused Gate 10.327s Passed 覆盖，
+最新 Agent/Verification 整包已由当前工作树的完整 `verify:g4` 独立重跑并通过，见下方最终 aggregate 记录；
+该结果不改写上述较早 Backend 全套的源码时间边界。
+
+最后一组 driver Gate 覆盖：metadata read 后再次刷新实际时钟；原 Task deadline 只余 30/60 秒时把
+300 秒 grant request 收紧为合法短期 expiry、保留调用方更短的 expiry、到期拒绝；正式 G3 failed attempt
+完成、实际 durable cleanup 后用户 cancel、双 ACK-loss 与 terminal 48h replay；未消费或 foreign command、
+cleanup provider/time drift 和当前 owner 更换拒绝。清理 transport command 不再改变 actual cleanup
+身份；首次写入权限保持原 fence。日志为 `backend-final-driver-postgres.log`。
+
+## 2026-10-01 ordinary consumer repair and rollback local evidence
+
+状态为 **Implemented / Local package Gates Passed**，覆盖当前未提交工作树的公开 owner 组合与 bounded
+transport fixture；actual driver、真实 PostgreSQL 和 exact-commit aggregate 由对应独立 Gate 证明。
+
+`pnpm --filter @prodivix/agent-runtime test`：10 files / 85 tests Passed，18.45s；typecheck、lint、
+两个 production entry bundles 与各自 `--help` smoke Passed。涵盖 Started Commit ACK-loss 在资源/预算变化后
+仍 exact replay、Closure publication ACK-loss 的 frozen identity/current revocation、actual reverse ACK-loss、
+rollback target public Plan codec/required-cell retention、原始 failure 不被 rollback 覆盖、新 repair Task 的
+完整失败 Context/fresh proposal/new approval，以及 verifying Task 优先调度和 terminal commit/rollback
+G3 Run 的 cleanup ACK-loss 重试。
+
+硬预算测试验证正式 adapter artifact ceiling 预留、promoted artifact 超 reservation 在 Closure 之前
+fail closed、Closure HTTP ACK 等待计入 actual elapsed，以及晚到 output/Closure ACK 不能形成 succeeded。
+Workspace verification impact 的 semantic schema/provider digests 使用公开 SHA-256 owner，实际生成 Plan
+通过 strict public codec。AI 全包 86 files / 576 Passed / 12 opt-in Skip；Workspace 49 files / 202 Passed；
+Workspace Sync 12 files / 119 Passed，三个 package 的 typecheck 与 lint Passed。AI 新 repair owner 测试
+另覆盖精确 decimal usage/cost、父 Run/policy/budget authority、unsettled reservation 与全维耗尽拒绝。
+
+这些 deterministic/local 测试没有调用真实模型，不替代 ADR 69 qualification、生产 rootless/browser
+资格或 Global G4 Exit。当前工作树完整本地 `verify:g4` 已通过，详见下方独立 aggregate 记录；本批远端
+证据仍须独立取得，不沿用历史 workflow 结果。
+
+## 2026-10-01 audit repair frozen-worktree aggregate
+
+状态为 **Implemented within declared supported scope / Current Working-tree Local Aggregate Passed**。
+Baseline 为 `f3f85bc46051d5022a144cfc0084c731307855ed`，验证的是未提交工作树，没有 commit/push。
+实际环境为 Windows/amd64、Node 26.3.0、pnpm 11.9.0、Go 1.26.4 与隔离 PostgreSQL 18.4。
+
+连续 pipeline 于 `2026-10-01T09:06:08.2791071Z` 启动，依次运行完整 `pnpm run format`、
+`pnpm run lint`、`verify:g4:postgres`、`verify:g4:rootless-contract`、`verify:g3:adapter-matrix`、
+`verify:g2:binary-assets` 和完整 `verify:g4`，七项均 exit 0。最后一项在
+`2026-10-01T10:40:54.6155646Z` 完成；完整 G4 的单条命令包含 V0–V9 deterministic/security/product/
+model-evaluation contract、Golden、真实 PostgreSQL 和 rootless contract，不是局部命令拼接出的 Passed。
+本轮原始日志为 `repair-final-g4-complete.log`，其余六项日志及准确完成时间记录于
+`repair-final-gates-state.json`。G2/G3 的本轮实际 Browser、计数与 digest 分别记录在对应 closure evidence。
+
+- ordinary runtime：10 files / 85 tests Passed；typecheck、lint、production entry builds 与 help smoke Passed。
+- V6 verification/repair Golden：8 tests Passed。生产 binding 与 rollback retention 先用公开 owner 验证
+  approved/actual Plan 内容及 canonical digest；保留原 digest 的 policy/retry/derived-budget 篡改和
+  已篡改 approved Plan 均被拒绝。原 negative assertion 保留。
+- model-evaluation AI contract：38 files / 301 Passed / 12 opt-in Skip。Runner 全包：115 files / 758 Passed，
+  无 Skip。完整归档 evidence verifier：49 Passed / 0 Failed / 0 Skip，1,721,904.3539ms；operational
+  verifiers：30 Passed / 0 Failed / 0 Skip，17,626.5078ms。归档 14,040-attempt positive stream 是确定性
+  fixture 规模检查，不是真实 Provider journeys 或 actual human review。
+- 最终源码的全 Agent/Verification PostgreSQL Gate 使用 `go test -count=1`，继承
+  `PRODIVIX_BACKEND_POSTGRES_TEST_URL`：Agent 197.634s、Verification 35.626s、Database 87.484s Passed。
+  它覆盖最后 driver clock、cleanup replay 与短期 AttemptGrant expiry 修改；命名 PostgreSQL scripts 的
+  指定 cases 不单独冒充这些 ordinary runtime 修改的整包覆盖。
+- V9 actual Browser Golden：2 files / 7 tests Passed，422.86s，包含 controlled owner 精确登记检查。
+  28 controlled cases / 17 profiles / 8 owner suites 保持不变；本轮新增 cancellation test 使 owner cases
+  从历史 127 成为 128，每 suite 精确计数为 `20/9/12/7/14/6/7/53`，继续要求零 failed/skip/todo。
+
+两次较早完整 G4 的失败日志保留：首次发现 exact-digest shortcut 未校验 Plan body，修复生产 owner 后增加
+commit/rollback 篡改 negatives；第二次发现实际 owner 128 与登记 127 不一致，修正 registration 并加强
+逐 suite 校验。最终通过没有移除、跳过或放宽原失败断言。
+
+普通 consumer 支持每个 required cell 一次 physical attempt，要求 `maximumAttempts=1` 与
+`stabilitySamples=1`。ordinary Browser 使用 Chromium，fixture transport 只支持无请求或一个 exact Auth
+session 响应。Commit 后 actual Plan 必须与 approved projected Plan digest 相等；合法但不同的 compatible
+Plan 当前 blocked，rollback 则另经公开 restored-target/required-cell retention proof。更宽 attempt
+coordination、Browser/fixture composition 与 compatible Plan owner proof 接线是尚未实现的代码能力扩展，
+不能归为仅缺外部 qualification。
+
+本轮 remote-model units 为 0。当前工作树 exact-commit remote CI、实际 Docker deploy、ordinary
+Node 22/Linux/rootless/AppContainer/TLS/signer/Backend/Browser 的整套生产部署资格、VS Code GUI，
+三个真实 Provider 的 release qualification、protected holdout、human review、actual usage/cost 与 satisfied
+Global G4 Closure 仍为 **External Evidence Pending**。Global G4 保持 **In Progress**。
+
+最后交付检查发现 `deploy/start-app.sh`、`apps/web/docker/nginx.conf` 与 `deploy/.env.example`
+的物理工作树字节含 CRLF/LF 混合换行，而 canonical Git blob 与 `.gitattributes` 要求 LF。
+三份文本已归一为 UTF-8 无 BOM / LF，脚本通过 Git Bash `bash -n deploy/start-app.sh`，现有
+deployment configuration conformance 1 file / 9 tests Passed。此修正发生在上述 aggregate 之后，
+没有改变 Git 归一后的部署内容；独立日志为 `repair-final-deploy-lf.log`。交付前再执行完整 format 与
+`git diff --check`，其结果独立记录在修复总清单，不把 shell syntax check 当作 actual Docker deploy。

@@ -29,7 +29,7 @@ async function main() {
   const ctx = await esbuild.context({
     entryPoints: {
       extension: 'src/index.ts',
-      debugAdapter: '../../packages/vscode-debugger/src/debugAdapter.ts',
+      debugAdapter: '../../packages/vscode-debugger/src/debugAdapterMain.ts',
     },
     bundle: true,
     format: 'cjs',
@@ -37,6 +37,7 @@ async function main() {
     sourcemap: !production,
     sourcesContent: false,
     platform: 'node',
+    mainFields: ['module', 'main'],
     outdir: 'dist',
     entryNames: '[name]',
     external: ['vscode'],

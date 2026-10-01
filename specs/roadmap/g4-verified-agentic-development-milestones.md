@@ -13,7 +13,21 @@
 
 ## 当前判断
 
-状态：`V0–V9 Implemented / Exact-commit Deterministic CI Evidence Passed；Real-model Evaluation and Satisfied Closure Evidence Pending`。
+状态：`V0–V9 Implemented / Historical Exact-commit Deterministic CI Passed / Current Worktree Local verify:g4 Passed；Current Repair Remote CI, Real-model Evaluation and Satisfied Closure Evidence Pending`。
+
+2026-10-01，普通 Task 的独立生产 consumer、真实 G3 driver service、失败 Closure、derived repair admission
+与 rollback 后验证组合已实现。Web/CLI 使用同一公开 repair admission codec；父 Run 的已用 usage、cost、
+ACK、artifact、repair round 和整个 Run wall time 均从子 Task 上限扣除，不能通过重新提交或更换 Task ID
+重置预算。原审批不能授权 repair proposal；每轮仍需新的 exact human approval。当前补齐工作的状态为
+`Implemented within declared supported scope / Local package and full verify:g4 Gates Passed`；对应本地证据记录在
+[`g4-closure-evidence.md`](g4-closure-evidence.md)。本批修改尚未产生 exact-commit 远端 CI，真实 Provider
+release qualification 与 satisfied Global G4 Closure 仍为 external evidence pending。
+
+ordinary driver 当前只执行 required cell 的单次 fresh attempt，要求 `maximumAttempts=1`、
+`stabilitySamples=1`；Browser 使用 Chromium 和无请求/一个 exact Auth session 的 fixture transport。
+Commit actual Plan 与 approved projected Plan digest 不同的 compatible case 当前 blocked；rollback
+另外执行公开 restored-target/required-cell retention proof。更宽 retry/stability、Browser/fixture composition
+与 compatible Plan proof 接线是尚未实现的代码能力扩展，不属于只需补充外部资格证据的项目。
 
 2026-07-31 已冻结 G4 owner、AgentPolicy、Task/Run lifecycle、Context Pack、Provider capability/invocation、
 多模态 transformation/generated asset、hosted tool/retrieval/MCP/computer-use boundary、multi-dimensional usage、

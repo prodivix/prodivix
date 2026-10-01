@@ -123,6 +123,7 @@ export {
   createWorkspaceAgentProposalProjection,
   prepareWorkspaceAgentCommit,
   prepareWorkspaceAgentRollback,
+  projectWorkspaceAgentCommittedSnapshot,
   reconcileWorkspaceAgentCommit,
   rejectWorkspaceAgentCommitConflict,
   type AgentProposalVerificationPlanner,
@@ -143,6 +144,8 @@ export {
   digestWorkspaceAgentVerificationRun,
   evaluateWorkspaceAgentVerificationClosure,
   prepareWorkspaceAgentRepairRound,
+  retainsWorkspaceAgentRegressionRequirements,
+  retainsWorkspaceAgentRollbackVerificationPlan,
   type CreateWorkspaceAgentVerificationPlanBindingInput,
   type EvaluateWorkspaceAgentVerificationClosureInput,
   type PrepareWorkspaceAgentRepairRoundInput,
@@ -155,3 +158,10 @@ export {
   createWorkspaceAgentProductSupplement,
   type CreateWorkspaceAgentProductSupplementInput,
 } from './agent/workspaceAgentProductProjection';
+export {
+  createWorkspaceAgentRepairFailure,
+  decodeWorkspaceAgentRepairFailure,
+  createWorkspaceAgentRepairContext,
+  type WorkspaceAgentRepairFailure,
+} from './agent/workspaceAgentRepairTaskCoordinator';
+export { workspaceAgentContextContainsRepairFailure } from './agent/workspaceAgentRepairContext';

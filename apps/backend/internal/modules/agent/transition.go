@@ -172,7 +172,7 @@ func validateEventSpecificTransition(taskMode string, current, next runFact, eve
 		}
 	case "run.phase-changed":
 		phase := stringMember(event.Data, "phase")
-		if !phaseTransitions[current.Phase][phase] || next.Phase != phase ||
+		if phase == "cancelling" || !phaseTransitions[current.Phase][phase] || next.Phase != phase ||
 			current.Attempt != next.Attempt || current.CallbackAuthority != next.CallbackAuthority ||
 			current.CleanupState != next.CleanupState || !sameMember(currentAttempts, nextAttempts) ||
 			!sameMember(currentLedger, nextLedger) || currentHasPending != nextHasPending ||

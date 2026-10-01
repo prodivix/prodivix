@@ -337,13 +337,19 @@ const snapshotBase = (
 
 export const createInitialAgentRunSnapshot = (
   task: AgentTaskRecord,
-  input: Readonly<{ runId: string; createdAt: string }>
+  input: Readonly<{
+    runId: string;
+    createdAt: string;
+    contextPackDigest?: string;
+  }>
 ): AgentRunSnapshot => {
   if (
     !isAgentTaskRecord(task) ||
     !isAgentControlIdentity(input.runId) ||
     !isAgentControlInstant(input.createdAt) ||
-    Date.parse(input.createdAt) < Date.parse(task.spec.createdAt)
+    Date.parse(input.createdAt) < Date.parse(task.spec.createdAt) ||
+    (input.contextPackDigest !== undefined &&
+      !isAgentCanonicalDigest(input.contextPackDigest))
   ) {
     throw new TypeError('Initial AgentRun identity is invalid.');
   }
@@ -356,6 +362,9 @@ export const createInitialAgentRunSnapshot = (
     baseRevision: task.spec.baseRevision,
     policyDigest: task.spec.policyDigest,
     grantRef: task.spec.initialGrantRef,
+    ...(input.contextPackDigest
+      ? { contextPackDigest: input.contextPackDigest }
+      : {}),
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
   });

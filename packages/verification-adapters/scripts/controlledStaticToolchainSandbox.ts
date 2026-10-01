@@ -50,6 +50,7 @@ const minimalProviderEnvironment = (): NodeJS.ProcessEnv => {
     'CONTAINERS_CONF',
     'CONTAINERS_STORAGE_CONF',
     'PRODIVIX_CONTROLLED_STATIC_SANDBOX_IMAGE',
+    'PRODIVIX_CONTROLLED_STATIC_RESOURCE_SCOPE',
   ] as const) {
     const value = process.env[key];
     if (value) environment[key] = value;
@@ -61,7 +62,7 @@ const terminateProviderTree = async (child: ChildProcess): Promise<void> => {
   if (child.exitCode !== null || child.signalCode !== null || !child.pid)
     return;
   try {
-    process.kill(-child.pid, 'SIGKILL');
+    process.kill(child.pid, 'SIGKILL');
   } catch (error) {
     if (!(
       error instanceof Error &&
@@ -96,7 +97,7 @@ const runProvider = (
     const child = spawn(process.execPath, [tsxCli, bridgePath], {
       cwd: repoRoot,
       env: minimalProviderEnvironment(),
-      detached: true,
+      detached: false,
       shell: false,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],

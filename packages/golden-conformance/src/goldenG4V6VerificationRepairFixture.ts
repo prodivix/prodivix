@@ -1,3 +1,4 @@
+import { canonicalJsonText } from '@prodivix/shared/canonical';
 import {
   createAgentActionProposal,
   createAgentApprovalDecision,
@@ -6,6 +7,7 @@ import {
   type AgentApprovalPreflightContext,
   type AgentCapabilityGrant,
   type AgentContextPack,
+  type AgentContextMaterial,
   type AgentControlCommandIdentity,
   type AgentJsonValue,
   type AgentPrincipalRef,
@@ -23,6 +25,7 @@ import {
   digestVerificationValue,
   evaluateVerificationClosure,
   uniqueVerificationText,
+  encodeVerificationClosure,
   type EvaluateVerificationClosureInput,
   type VerificationAttemptOutcome,
   type VerificationArtifactKind,
@@ -654,7 +657,7 @@ export const GOLDEN_G4_V6_PASSED_FLOW = createGoldenG4V6VerificationFlow({
 const contextItem = (
   kind: 'verification-closure' | 'verification-evidence',
   id: string,
-  contentDigest: string,
+  content: string,
   revision: ReturnType<typeof createAgentWorkspaceRevisionFromSnapshot>
 ) =>
   Object.freeze({
@@ -663,36 +666,64 @@ const contextItem = (
     authority: 'derived' as const,
     source: Object.freeze({ kind: 'verification' as const, id }),
     revision,
-    contentDigest,
+    contentDigest: digestAgentCanonicalValue(content),
     mediaType: 'application/json',
-    byteLength: 64,
+    byteLength: new TextEncoder().encode(content).length,
     sensitivity: 'internal' as const,
     instructionBoundary: 'data-only' as const,
   });
+
+export const GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS: readonly AgentContextMaterial[] =
+  (() => {
+    const revision = createAgentWorkspaceRevisionFromSnapshot(
+      GOLDEN_G4_V6_COMMITTED_WORKSPACE
+    );
+    const failedEvidence = GOLDEN_G4_V6_FAILED_FLOW.evidence.filter(
+      ({ result }) => result.outcome !== 'passed'
+    );
+    const content = (ref: string, digest: string, summary: unknown) =>
+      canonicalJsonText({ ref, digest, summary });
+    const closureContent = content(
+      GOLDEN_G4_V6_FAILED_FLOW.closureReceipt.receiptId,
+      GOLDEN_G4_V6_FAILED_FLOW.closure.closureDigest,
+      encodeVerificationClosure(GOLDEN_G4_V6_FAILED_FLOW.closure)
+    );
+    return Object.freeze([
+      {
+        content: closureContent,
+        item: contextItem(
+          'verification-closure',
+          GOLDEN_G4_V6_FAILED_FLOW.closureReceipt.receiptId,
+          closureContent,
+          revision
+        ),
+      },
+      ...failedEvidence.map((evidence) => {
+        const evidenceContent = content(
+          evidence.id,
+          evidence.manifestDigest,
+          evidence
+        );
+        return {
+          content: evidenceContent,
+          item: contextItem(
+            'verification-evidence',
+            evidence.id,
+            evidenceContent,
+            revision
+          ),
+        };
+      }),
+    ]);
+  })();
 
 const createFailureContextPack = (): AgentContextPack => {
   const revision = createAgentWorkspaceRevisionFromSnapshot(
     GOLDEN_G4_V6_COMMITTED_WORKSPACE
   );
-  const failedEvidence = GOLDEN_G4_V6_FAILED_FLOW.evidence.filter(
-    ({ result }) => result.outcome !== 'passed'
+  const items = Object.freeze(
+    GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS.map(({ item }) => item)
   );
-  const items = Object.freeze([
-    contextItem(
-      'verification-closure',
-      GOLDEN_G4_V6_FAILED_FLOW.closureReceipt.receiptId,
-      GOLDEN_G4_V6_FAILED_FLOW.closure.closureDigest,
-      revision
-    ),
-    ...failedEvidence.map((evidence) =>
-      contextItem(
-        'verification-evidence',
-        evidence.id,
-        evidence.manifestDigest,
-        revision
-      )
-    ),
-  ]);
   const base = Object.freeze({
     taskId: GOLDEN_G4_V5_TASK.spec.taskId,
     runId: GOLDEN_G4_V5_RUN.run.runId,
@@ -769,6 +800,8 @@ const repairPreparation = prepareWorkspaceAgentRepairRound({
   failedPlan: GOLDEN_G4_V6_FAILED_FLOW.plan,
   failedEvidence: GOLDEN_G4_V6_FAILED_FLOW.evidence,
   failureContextPack: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK,
+  failureContextMaterials: GOLDEN_G4_V6_FAILURE_CONTEXT_MATERIALS,
+  effectivePolicyDigest: GOLDEN_G4_V6_FAILURE_CONTEXT_PACK.policyDigest,
   previousRepairReceipts: Object.freeze([]),
   receiptId: 'receipt.golden.g4-v6.repair.started',
   repairRoundId: 'repair-round.golden.g4-v6.1',

@@ -320,6 +320,35 @@ func (store *WorkspaceStore) GetWorkspaceAssetBlobForOwner(
 
 	ctx, cancel := withStoreTimeout(ctx)
 	defer cancel()
+	return readWorkspaceAssetBlob(ctx, store.db, workspaceID, digest)
+}
+
+type workspaceAssetBlobReader interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func (store *WorkspaceStore) GetWorkspaceAssetBlobForOwnerTx(ctx context.Context, tx *sql.Tx, ownerID, workspaceID, digest string) (*WorkspaceAssetBlob, error) {
+	if tx == nil || !workspaceAssetDigestPattern.MatchString(digest) {
+		return nil, ErrWorkspaceAssetBlobInvalid
+	}
+	var marker int
+	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM workspaces WHERE id=$1 AND owner_id=$2 FOR SHARE`, workspaceID, ownerID).Scan(&marker); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrWorkspaceNotFound
+		}
+		return nil, err
+	}
+	return readWorkspaceAssetBlob(ctx, tx, workspaceID, digest)
+}
+
+func AssetBlobReferenceForDocument(document WorkspaceDocumentRecord) (WorkspaceAssetBlobReference, error) {
+	if document.Type != WorkspaceDocumentTypeAsset {
+		return WorkspaceAssetBlobReference{}, ErrWorkspaceAssetBlobInvalid
+	}
+	return readWorkspaceAssetDocumentReference(document)
+}
+
+func readWorkspaceAssetBlob(ctx context.Context, reader workspaceAssetBlobReader, workspaceID, digest string) (*WorkspaceAssetBlob, error) {
 	const query = `SELECT media_type, byte_length, contents, created_at
 FROM workspace_asset_blobs
 WHERE workspace_id = $1 AND digest = $2`
@@ -327,7 +356,7 @@ WHERE workspace_id = $1 AND digest = $2`
 	var byteLength int64
 	var contents []byte
 	var createdAt time.Time
-	if err := store.db.QueryRowContext(
+	if err := reader.QueryRowContext(
 		ctx,
 		query,
 		strings.TrimSpace(workspaceID),

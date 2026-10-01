@@ -3,10 +3,12 @@ import type {
   AgentApprovalDecision,
   AgentProductView,
   AgentRunUserCommandKind,
+  AgentTaskOutput,
 } from '@prodivix/ai';
 
 type AgentRunViewProps = Readonly<{
   view: AgentProductView;
+  outputs?: readonly AgentTaskOutput[];
   busy: boolean;
   onReload: () => void;
   onCommand: (kind: AgentRunUserCommandKind) => void;
@@ -29,7 +31,16 @@ const JsonArtifact = ({ label, value }: { label: string; value: unknown }) => (
 
 export const AgentRunView = forwardRef<HTMLHeadingElement, AgentRunViewProps>(
   function AgentRunView(
-    { view, busy, onReload, onCommand, onOpenApproval, onAudit, onRepair },
+    {
+      view,
+      outputs = [],
+      busy,
+      onReload,
+      onCommand,
+      onOpenApproval,
+      onAudit,
+      onRepair,
+    },
     headingRef
   ) {
     const actions = new Set(view.availableActions);
@@ -94,6 +105,23 @@ export const AgentRunView = forwardRef<HTMLHeadingElement, AgentRunViewProps>(
             </div>
           </div>
         </section>
+
+        {outputs.map((output) => (
+          <section
+            key={output.outputId}
+            aria-label={
+              output.kind === 'answer' ? 'Agent answer' : 'Agent plan'
+            }
+            className="rounded-xl border border-(--border-subtle) bg-(--bg-panel) p-4"
+          >
+            <h3 className="m-0 text-base font-semibold">
+              {output.kind === 'answer' ? 'Answer' : 'Plan'}
+            </h3>
+            <p className="mb-0 text-sm break-words whitespace-pre-wrap text-(--text-primary)">
+              {output.text}
+            </p>
+          </section>
+        ))}
 
         {view.diagnostics.length ? (
           <section
@@ -292,7 +320,7 @@ export const AgentRunView = forwardRef<HTMLHeadingElement, AgentRunViewProps>(
                     type="button"
                     disabled={busy}
                     onClick={() => onOpenApproval('approved')}
-                    className="rounded-lg bg-(--accent-primary) px-3 py-2 text-sm font-semibold text-white"
+                    className="rounded-lg bg-(--accent-color) px-3 py-2 text-sm font-semibold text-(--text-inverse)"
                   >
                     Review and approve exact proposal
                   </button>
@@ -341,10 +369,11 @@ export const AgentRunView = forwardRef<HTMLHeadingElement, AgentRunViewProps>(
             {actions.has('repair') ? (
               <button
                 type="button"
+                disabled={busy}
                 onClick={onRepair}
                 className="rounded-lg border border-(--border-default) px-3 py-2 text-sm"
               >
-                Open G3 Verification surface
+                Create bounded repair proposal
               </button>
             ) : null}
           </div>

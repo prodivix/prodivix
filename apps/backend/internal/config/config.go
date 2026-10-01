@@ -14,23 +14,25 @@ import (
 )
 
 type Config struct {
-	Address            string
-	Environment        string
-	TokenTTL           time.Duration
-	AllowedOrigins     []string
-	DatabaseURL        string
-	DBMaxOpenConns     int
-	DBMaxIdleConns     int
-	DBMaxLifetime      time.Duration
-	DBMigrationTimeout time.Duration
-	GitHub             GitHubAppConfig
-	RemoteRunner       RemoteRunnerConfig
-	RemotePreview      RemotePreviewHostConfig
-	AssetDelivery      AssetDeliveryHostConfig
-	AssetBlobRetention WorkspaceAssetBlobRetentionConfig
-	EnvironmentSecrets EnvironmentSecretStoreConfig
-	Verification       VerificationEvidenceConfig
-	PasswordReset      PasswordResetConfig
+	Address              string
+	Environment          string
+	TokenTTL             time.Duration
+	AllowedOrigins       []string
+	DatabaseURL          string
+	DBMaxOpenConns       int
+	DBMaxIdleConns       int
+	DBMaxLifetime        time.Duration
+	DBMigrationTimeout   time.Duration
+	GitHub               GitHubAppConfig
+	RemoteRunner         RemoteRunnerConfig
+	RemotePreview        RemotePreviewHostConfig
+	AssetDelivery        AssetDeliveryHostConfig
+	AssetBlobRetention   WorkspaceAssetBlobRetentionConfig
+	EnvironmentSecrets   EnvironmentSecretStoreConfig
+	Verification         VerificationEvidenceConfig
+	PasswordReset        PasswordResetConfig
+	AgentDraftProviders  []AgentDraftProviderConfig
+	AgentRuntimeTokenEnv string
 }
 
 type WorkspaceAssetBlobRetentionConfig struct {
@@ -335,6 +337,14 @@ func LoadConfig() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	agentDraftProviders, err := loadAgentDraftProviders(environment)
+	if err != nil {
+		return Config{}, err
+	}
+	agentRuntimeTokenEnv := os.Getenv("BACKEND_AGENT_RUNTIME_TOKEN_ENV")
+	if agentRuntimeTokenEnv != "" && !regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,127}$`).MatchString(agentRuntimeTokenEnv) {
+		return Config{}, errors.New("BACKEND_AGENT_RUNTIME_TOKEN_ENV must be a server credential environment reference")
+	}
 	databaseURL := strings.TrimSpace(os.Getenv("BACKEND_DB_URL"))
 	if databaseURL == "" {
 		if environment != "development" && environment != "test" {
@@ -506,15 +516,17 @@ func LoadConfig() (Config, error) {
 		)
 	}
 	config := Config{
-		PasswordReset:  passwordReset,
-		Address:        address,
-		Environment:    environment,
-		TokenTTL:       tokenTTL,
-		AllowedOrigins: allowed,
-		DatabaseURL:    databaseURL,
-		DBMaxOpenConns: dbMaxOpenConns,
-		DBMaxIdleConns: dbMaxIdleConns,
-		DBMaxLifetime:  dbMaxLifetime,
+		AgentDraftProviders:  agentDraftProviders,
+		AgentRuntimeTokenEnv: agentRuntimeTokenEnv,
+		PasswordReset:        passwordReset,
+		Address:              address,
+		Environment:          environment,
+		TokenTTL:             tokenTTL,
+		AllowedOrigins:       allowed,
+		DatabaseURL:          databaseURL,
+		DBMaxOpenConns:       dbMaxOpenConns,
+		DBMaxIdleConns:       dbMaxIdleConns,
+		DBMaxLifetime:        dbMaxLifetime,
 
 		DBMigrationTimeout: dbMigrationTimeout,
 		GitHub: GitHubAppConfig{

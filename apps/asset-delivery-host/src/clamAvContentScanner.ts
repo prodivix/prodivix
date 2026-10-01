@@ -85,10 +85,12 @@ const scanWithClamAv = (
     const socket = createConnection({ host: options.host, port: options.port });
     let settled = false;
     let response = Buffer.alloc(0);
+    const deadline = setTimeout(() => fail('timeout'), options.timeoutMs);
 
     const finish = (result: BinaryAssetScanResult): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       resolve(result);
     };
@@ -99,6 +101,7 @@ const scanWithClamAv = (
     ): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       reject(new BinaryAssetScannerUnavailableError(reason));
     };

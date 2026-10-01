@@ -402,7 +402,12 @@ export const createDeterministicScheduler = (
           lane: task.lane,
         });
       }
-      if (!tasks.size && !barriers.size) status = 'idle';
+      const currentStatus = snapshot().status;
+      if (currentStatus === 'cancelled' || currentStatus === 'paused') {
+        return Object.freeze({ status: currentStatus });
+      }
+      if (!tasks.size && !barriers.size && currentStatus === 'running')
+        status = 'idle';
       return Object.freeze({ status: 'completed', taskId: task.id });
     },
     async runUntilIdle() {

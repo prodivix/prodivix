@@ -88,6 +88,29 @@ const runtimeOptions = (
 });
 
 describe('ClamAV daemon readiness', () => {
+  it('enforces the probe deadline despite continuing partial control records', async () => {
+    const server = createServer((socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+      socket.once('data', () => {
+        const timer = setInterval(() => socket.write('P'), 15);
+        socket.once('close', () => clearInterval(timer));
+      });
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve)
+    );
+    const address = server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('Missing daemon address');
+    await expect(
+      initializeClamAvDaemonRuntime({
+        ...runtimeOptions(address.port, Date.now),
+        timeoutMs: 60,
+      })
+    ).rejects.toMatchObject({ reason: 'timeout' });
+  });
   it('locks fresh daemon metadata into the effective scanner policy version', async () => {
     const daemon = await startDaemon();
     const now = Date.UTC(2026, 6, 18, 10, 0, 0);

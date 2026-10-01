@@ -1,12 +1,38 @@
 # G2 Closure Evidence
 
-> StatusDate: 2026-07-20
+> StatusDate: 2026-10-01
 > ProductGateStatus: Passed
 
 本文件只保存 G2 可重复验证证据和未覆盖边界。G2 当前状态仍以
 [`current-status.md`](./current-status.md) 为唯一来源；局部 Gate 通过不等于 G2 Product Gate 已通过。
 
+## 2026-10-01 audit repair frozen-worktree binary Asset aggregate
+
+状态为 **Local aggregate Passed**。基线 commit 为 `f3f85bc46051d5022a144cfc0084c731307855ed`，
+修复仍在未提交工作树中；本节不声明新的 exact-commit remote CI evidence。
+
+Windows/amd64、Node 26.3.0、pnpm 11.9.0、Go 1.26.4 与独立 PostgreSQL 18.4 上执行
+`pnpm run verify:g2:binary-assets`，2026-10-01 09:31:09 UTC 退出码 0。Assets、Asset Delivery Host、
+Workspace、Compiler、Runtime Core/Remote、G2 execution/Asset target Golden、Web、core boundaries 与
+对应 Backend packages 全部通过。Web 为 158 files / 661 tests；实际 Chromium Asset product journey
+为 1 test Passed（15.6s），没有重试或跳过。
+
+浏览器段显式使用 `CI=true`、独立本地 `E2E_PORT=52310` 与对应 loopback `E2E_BASE_URL`，
+强制执行当前源码的 Web production build 和新的 preview server，不复用已运行服务。Backend 使用
+`PRODIVIX_BACKEND_POSTGRES_TEST_URL` 指向本次独立实例；日志中的 Database/Workspace cache 命中
+复用同一源码与同一实例已有的成功结果，其更早的 Backend 全包真实 PostgreSQL 回归另有独立日志。
+完整本地日志为 `repair-final-g2-binary.log`。
+
+该结果覆盖本轮相关 Asset、Compiler、Runtime 和 Web 修改；Docker deployment smoke、真实云与
+production rootless 环境仍按各自 evidence boundary 单独待验，不由该本机 Gate 升级为 Passed。
+
 ## Remote Test correlation 与 D8 security slice
+
+2026-10-01 修复验证：Environment mode 已进入 revision-bound persistence（Backend migration v48）。
+迁移只回填旧数据的已知当前 revision；旧历史未知 mode fail closed，新快照必须显式保存 mode。
+`internal/modules/environment` 增加 exact 历史 mode 和 unknown legacy rejection 测试；
+`internal/platform/database` 增加 current-only 回填、历史不伪造、新写入缺失/无效 mode 拒绝的
+PostgreSQL integration Gate。远端修复 Gate 当前为 **Configured / Evidence pending**。
 
 本地重复命令：
 

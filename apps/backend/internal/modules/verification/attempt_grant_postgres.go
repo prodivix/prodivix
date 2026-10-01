@@ -463,6 +463,9 @@ func (authority *PostgreSQLAttemptGrantAuthority) insertAttemptGrant(
 		return AttemptGrantRecord{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return AttemptGrantRecord{}, err
+	}
 	var projectID string
 	var workspaceRevision, routeRevision, operationSequence int64
 	if err := tx.QueryRowContext(ctx, `SELECT project_id, workspace_rev, route_rev, op_seq
@@ -486,6 +489,12 @@ FOR SHARE`, record.WorkspaceID).Scan(
 		return AttemptGrantRecord{}, attemptGrantFailure(
 			"Workspace drifted while issuing the attempt grant.",
 		)
+	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return AttemptGrantRecord{}, err
+	}
+	if _, guarded := ctx.Value(writeAuthorizationKey{}).(WriteAuthorization); guarded && !canonicalTime(authority.now()).Before(record.ExpiresAt) {
+		return AttemptGrantRecord{}, ErrExpired
 	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO verification_attempt_grants (
 	id, workspace_id, project_id, workspace_revision, partition_revisions_digest,
@@ -542,6 +551,9 @@ FOR SHARE`,
 		}
 		record = existing
 	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return AttemptGrantRecord{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return AttemptGrantRecord{}, err
 	}
@@ -555,6 +567,17 @@ func (authority *PostgreSQLAttemptGrantAuthority) loadAttemptGrantByIdentity(
 	cellID string,
 	attemptID string,
 ) (AttemptGrantRecord, error) {
+	record, found, err := authority.findAttemptGrantByIdentity(ctx, workspaceID, planDigest, cellID, attemptID)
+	if err != nil {
+		return AttemptGrantRecord{}, err
+	}
+	if !found {
+		return AttemptGrantRecord{}, attemptGrantFailure("No immutable attempt grant authorizes this Candidate.")
+	}
+	return record, nil
+}
+
+func (authority *PostgreSQLAttemptGrantAuthority) findAttemptGrantByIdentity(ctx context.Context, workspaceID, planDigest, cellID, attemptID string) (AttemptGrantRecord, bool, error) {
 	ctx, cancel := repositoryContext(ctx)
 	defer cancel()
 	record, err := loadAttemptGrantRow(authority.db.QueryRowContext(
@@ -567,11 +590,9 @@ WHERE workspace_id = $1 AND plan_digest = $2 AND cell_id = $3 AND attempt_id = $
 		attemptID,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
-		return AttemptGrantRecord{}, attemptGrantFailure(
-			"No immutable attempt grant authorizes this Candidate.",
-		)
+		return AttemptGrantRecord{}, false, nil
 	}
-	return record, err
+	return record, err == nil, err
 }
 
 func (authority *PostgreSQLAttemptGrantAuthority) loadAttemptGrantByID(

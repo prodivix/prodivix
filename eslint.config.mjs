@@ -18,6 +18,7 @@ export default defineConfig([
     '**/coverage/**',
     '**/.turbo/**',
     '**/.vitepress/cache/**',
+    '**/.vitepress/.temp/**',
     '**/.vitepress/dist/**',
     '**/storybook-static/**',
     '**/out/**',

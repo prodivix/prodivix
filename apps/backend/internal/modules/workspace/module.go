@@ -203,36 +203,9 @@ func ResolveWorkspacePublicationPIR(resourceType backendproject.ResourceType, sn
 	return resolveCanonicalPIRDocument(resourceType, candidates)
 }
 
-func (module *Module) PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string) (*backendproject.Project, error) {
+func (module *Module) PublishProjectWorkspace(ctx context.Context, userID string, workspaceID string, expected *backendproject.PublicationExpected) (*backendproject.Project, error) {
 	if module == nil || module.projects == nil {
 		return nil, errors.New("workspace publication is not initialized")
 	}
-	normalizedUserID := strings.TrimSpace(userID)
-	normalizedWorkspaceID := strings.TrimSpace(workspaceID)
-	snapshot, err := module.GetSnapshotForUser(ctx, normalizedUserID, normalizedWorkspaceID)
-	if err != nil {
-		if errors.Is(err, ErrWorkspaceNotFound) {
-			return nil, backendproject.ErrProjectNotFound
-		}
-		return nil, err
-	}
-	projectID := strings.TrimSpace(snapshot.Workspace.ProjectID)
-	if projectID == "" {
-		return nil, errors.New("workspace publication requires a project id")
-	}
-	if projectID != normalizedWorkspaceID {
-		return nil, errors.New("workspace publication project identity does not match")
-	}
-	// The resource type decides which document is the publication projection,
-	// so it is read from the project record rather than inferred from whatever
-	// documents happen to exist.
-	project, err := module.projects.GetByID(normalizedUserID, projectID)
-	if err != nil {
-		return nil, err
-	}
-	pir, ok := ResolveWorkspacePublicationPIR(project.ResourceType, snapshot)
-	if !ok {
-		return nil, backendproject.ErrProjectNotPublishable
-	}
-	return module.projects.PublishWorkspaceProjection(normalizedUserID, projectID, pir)
+	return module.publishProjectWorkspace(ctx, userID, workspaceID, expected)
 }

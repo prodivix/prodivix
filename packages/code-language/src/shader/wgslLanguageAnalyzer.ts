@@ -210,8 +210,19 @@ const collectAttributeTokenIndexes = (
     if (tokens[index + 2]?.lexeme !== '(') continue;
     const close = findMatchingToken(tokens, index + 2, '(', ')');
     if (close < 0) continue;
-    for (let nested = index + 2; nested <= close; nested += 1) {
-      output.add(nested);
+    // These attributes use expression arguments; identifiers remain symbol references.
+    const expressionAttribute = new Set([
+      'align',
+      'binding',
+      'group',
+      'id',
+      'location',
+      'size',
+      'workgroup_size',
+    ]);
+    if (!expressionAttribute.has(tokens[index + 1]!.lexeme)) {
+      for (let nested = index + 2; nested <= close; nested += 1)
+        output.add(nested);
     }
   }
   return output;

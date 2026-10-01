@@ -14,6 +14,7 @@ import (
 	backendresponse "github.com/Prodivix/prodivix/apps/backend/internal/platform/http/response"
 	backendidentity "github.com/Prodivix/prodivix/apps/backend/internal/platform/identity"
 	backendtext "github.com/Prodivix/prodivix/apps/backend/internal/platform/text"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -180,7 +181,10 @@ func (handler *Handler) HandleLogin(c *gin.Context) {
 func (handler *Handler) HandleLogout(c *gin.Context) {
 	token := ResolveToken(c)
 	if token != "" {
-		handler.sessions.Delete(token)
+		if err := handler.sessions.Delete(token); err != nil {
+			respondError(c, http.StatusInternalServerError, "API-5001", "Could not revoke session.")
+			return
+		}
 	}
 	c.Status(http.StatusNoContent)
 }
@@ -270,7 +274,7 @@ func (handler *Handler) HandleUpdateAvatar(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "API-1001", "Could not read avatar file.")
 		return
 	}
-	contentType := http.DetectContentType(header[:bytesRead])
+	contentType := mimetype.Detect(header[:bytesRead]).String()
 	extension, ok := allowedAvatarContentTypes[contentType]
 	if !ok {
 		respondError(c, http.StatusBadRequest, "API-4001", "Avatar must be a PNG, JPEG, WebP, or AVIF image.")

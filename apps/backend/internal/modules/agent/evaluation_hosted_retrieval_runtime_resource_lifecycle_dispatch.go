@@ -358,6 +358,27 @@ func storeEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntentTx(
 	return false, nil
 }
 
+func validateEvaluationHostedLifecycleDeletionFenceTx(
+	ctx context.Context, tx *sql.Tx, intent evaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntent, admittedAt time.Time,
+) error {
+	if intent.Operation != "delete" {
+		return nil
+	}
+	var notBefore time.Time
+	err := tx.QueryRowContext(ctx, `SELECT request.deletion_not_before
+		FROM ae_hrrr_cleanup_claim_receipts claim JOIN ae_hrrr_cleanup_requests request
+		ON request.namespace_id=claim.namespace_id AND request.request_digest=claim.cleanup_request_digest
+		AND request.authority_digest=claim.authority_digest
+		WHERE claim.namespace_id=$1 AND claim.authority_digest=$2 AND claim.receipt_digest=$3
+		UNION ALL SELECT claimed_at FROM ae_hrrr_lifecycle_partial_cleanup_claim_history
+		WHERE namespace_id=$1 AND partial_cleanup_authority_digest=$2 AND claim_receipt_digest=$3`,
+		intent.NamespaceID, intent.AuthorityDigest, intent.LifecycleClaimReceiptDigest).Scan(&notBefore)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && (notBefore.IsZero() || intent.CreatedAt.Before(notBefore) || admittedAt.Before(notBefore))) {
+		return ErrConflict
+	}
+	return err
+}
+
 func validateEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchClaimCASTx(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -461,6 +482,9 @@ func (owner *EvaluationHostedRetrievalRuntimeResource) StageAndClaimLifecycleDis
 		return existingReceipt, true, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, false, err
+	}
+	if err := validateEvaluationHostedLifecycleDeletionFenceTx(ctx, tx, intent, claimedAt); err != nil {
 		return nil, false, err
 	}
 	if _, err := storeEvaluationHostedRetrievalRuntimeResourceLifecycleDispatchIntentTx(ctx, tx, intent); err != nil {

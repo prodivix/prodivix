@@ -1,21 +1,33 @@
 {
   "name": "@prodivix/vscode-debugger",
   "version": "0.0.1",
-  "description": "VS Code Debug Adapter for PIR",
+  "type": "module",
+  "description": "Revision-bound NodeGraph Debug Adapter for VS Code",
   "main": "lib/debugAdapter.js",
+  "types": "lib/debugAdapter.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/debugAdapter.d.ts",
+      "import": "./lib/debugAdapter.js"
+    }
+  },
   "scripts": {
     "lint": "eslint .",
-    "build": "tsc",
+    "build": "tsc && node esbuild.mjs",
     "dev": "tsc --watch",
-    "test": "echo \"No tests for vscode-debugger\" && exit 0",
-    "start": "node lib/debugAdapter.js"
+    "test": "pnpm run build && vitest --run",
+    "start": "node lib/debugAdapterMain.cjs"
   },
   "dependencies": {
+    "@prodivix/nodegraph": "workspace:*",
+    "@prodivix/shared": "workspace:*",
     "@vscode/debugadapter": "^1.68.0",
-    "@vscode/debugprotocol": "^1.68.0"
+    "@vscode/debugprotocol": "^1.68.0",
+    "jsonc-parser": "3.3.1"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
+    "esbuild": "0.28.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

@@ -4,6 +4,7 @@ import {
 } from '@prodivix/shared/canonical';
 import type {
   AgentBudget,
+  AgentCapability,
   AgentContextAuthority,
   AgentContextPolicy,
   AgentPolicy,
@@ -14,6 +15,9 @@ import type {
   AgentProviderSupportTier,
   AgentRetentionRules,
   AgentSensitivity,
+  AgentTargetScope,
+  AgentRuntimeZone,
+  AgentRiskLevel,
   AgentUsageLimit,
   CanonicalDigest,
   Instant,
@@ -81,6 +85,75 @@ export type AgentProviderAdmissionResult =
       allowed: false;
       issues: readonly AgentPolicyEvaluationIssue[];
     }>;
+
+/** Every policy layer must admit the complete capability, scope, and runtime slice. */
+export const evaluateAgentCapabilityAdmission = (
+  effective: AgentEffectivePolicy,
+  input: Readonly<{
+    workspaceId: string;
+    targetScope: AgentTargetScope;
+    capabilities: readonly AgentCapability[];
+    runtimeZone: AgentRuntimeZone;
+    maximumRisk: AgentRiskLevel;
+  }>
+): AgentProviderAdmissionResult => {
+  const issues = [...validateAgentEffectivePolicy(effective)];
+  const rank: Readonly<Record<AgentRiskLevel, number>> = {
+    low: 0,
+    medium: 1,
+    high: 2,
+    critical: 3,
+  };
+  if (
+    !input.workspaceId ||
+    input.capabilities.length === 0 ||
+    input.targetScope.targets.length === 0
+  ) {
+    issues.push(
+      issue(
+        'AI-7001',
+        '/capabilities',
+        'Capability admission requires bounded scope and capabilities.'
+      )
+    );
+  }
+  for (const layer of effective.layers) {
+    for (const capability of input.capabilities) {
+      for (const target of input.targetScope.targets) {
+        const matching = layer.policy.capabilityRules.filter(
+          (rule) =>
+            rule.capabilities.includes(capability) &&
+            rule.runtimeZones.includes(input.runtimeZone) &&
+            rank[rule.maximumRisk] >= rank[input.maximumRisk] &&
+            rule.targetScope.targets.some(
+              (allowed) =>
+                (allowed.kind === target.kind && allowed.id === target.id) ||
+                (allowed.kind === 'workspace' &&
+                  allowed.id === input.workspaceId)
+            )
+        );
+        if (
+          !matching.some(({ effect }) => effect === 'allow') ||
+          matching.some(({ effect }) => effect === 'deny')
+        ) {
+          issues.push(
+            issue(
+              'AI-7001',
+              `/layers/${layer.kind}/capabilities/${capability}`,
+              'Policy layer does not admit the requested capability, scope, and runtime.'
+            )
+          );
+        }
+      }
+    }
+  }
+  return issues.length === 0
+    ? Object.freeze({
+        allowed: true,
+        policyDigest: effective.evaluation.effectivePolicyDigest,
+      })
+    : Object.freeze({ allowed: false, issues: Object.freeze(issues) });
+};
 
 const layerOrder: Readonly<Record<AgentPolicyLayerKind, number>> =
   Object.freeze({

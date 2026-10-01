@@ -163,6 +163,57 @@ describe('Animation keyframe time moves', () => {
 describe('Animation composition commands', () => {
   beforeEach(() => resetEditorStore());
 
+  it('blocks referenced timeline and nested composition deletion until their dependents are removed', () => {
+    const animation: AnimationDefinition = {
+      ...createKeyframedAnimation(),
+      compositions: [
+        {
+          id: 'child',
+          name: 'Child',
+          motionIntent: 'decorative',
+          root: {
+            id: 'child-root',
+            kind: 'timeline-ref',
+            timelineId: 'timeline-test',
+          },
+        },
+        {
+          id: 'parent',
+          name: 'Parent',
+          motionIntent: 'decorative',
+          root: {
+            id: 'parent-root',
+            kind: 'composition-ref',
+            compositionId: 'child',
+          },
+        },
+      ],
+      entryCompositionId: 'parent',
+    };
+    useEditorStore.getState().setWorkspaceSnapshot(createWorkspace(animation));
+    const { result, unmount } = renderHook(() =>
+      useAnimationEditorState({
+        animationDocumentId: 'animation-home',
+        persistedAnimation: animation,
+      })
+    );
+    act(() => result.current.deleteTimeline('timeline-test'));
+    expect(result.current.animation.timelines).toHaveLength(1);
+    expect(result.current.persistenceDiagnostic).toContain('references first');
+    act(() => result.current.deleteComposition('child'));
+    expect(result.current.animation.compositions).toHaveLength(2);
+    expect(result.current.persistenceDiagnostic).toContain('references first');
+    act(() => result.current.deleteComposition('parent'));
+    act(() => result.current.deleteComposition('child'));
+    act(() => result.current.deleteTimeline('timeline-test'));
+    expect(result.current.animation.timelines).toEqual([]);
+    expect(result.current.animation.compositions).toEqual([]);
+    expect(result.current.animation.entryCompositionId).toBeUndefined();
+    expect(result.current.persistenceDiagnostic).toBeUndefined();
+    unmount();
+    resetEditorStore();
+  });
+
   it('authors, renames, selects, and removes a composition through Workspace state', () => {
     const { result, unmount } = renderKeyframeEditorState();
     let compositionId = '';

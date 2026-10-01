@@ -47,9 +47,18 @@ type ApprovalDecisionRecord struct {
 	ExpiresAt      time.Time
 }
 
-func (repository *Repository) StoreProposal(
+func (repository *Repository) StoreProposal(ctx context.Context, authority PrincipalAuthority, factBytes []byte) (ProposalRecord, bool, error) {
+	return repository.storeProposal(ctx, authority, nil, factBytes)
+}
+
+func (repository *Repository) StoreRuntimeProposal(ctx context.Context, authority PrincipalAuthority, lease RunLeaseAuthority, clock func() time.Time, factBytes []byte) (ProposalRecord, bool, error) {
+	return repository.storeProposal(ctx, authority, &RuntimeLeaseGuard{Authority: lease, Clock: clock}, factBytes)
+}
+
+func (repository *Repository) storeProposal(
 	ctx context.Context,
 	authority PrincipalAuthority,
+	lease *RuntimeLeaseGuard,
 	factBytes []byte,
 ) (ProposalRecord, bool, error) {
 	if err := repository.available(); err != nil {
@@ -76,6 +85,11 @@ func (repository *Repository) StoreProposal(
 	run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, proposal.RunID)
 	if err != nil {
 		return ProposalRecord{}, false, err
+	}
+	if lease != nil {
+		if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, proposal.RunID, lease, run); err != nil {
+			return ProposalRecord{}, false, err
+		}
 	}
 	repairPlanning := run.Phase == "repairing"
 	if task.ProjectID != authority.ProjectID || task.WorkspaceID != authority.WorkspaceID ||
@@ -138,9 +152,19 @@ ON CONFLICT DO NOTHING`,
 	return proposalRecord(authority.WorkspaceID, proposal, receivedAt), false, nil
 }
 
-func (repository *Repository) StoreProposalPreview(
+func (repository *Repository) StoreProposalPreview(ctx context.Context, authority PrincipalAuthority, planningFactBytes, previewFactBytes []byte) (ProposalPreviewRecord, bool, error) {
+	return repository.storeProposalPreview(ctx, authority, nil, "", planningFactBytes, previewFactBytes)
+}
+
+func (repository *Repository) StoreRuntimePreview(ctx context.Context, authority PrincipalAuthority, lease RunLeaseAuthority, clock func() time.Time, runID string, planningFactBytes, previewFactBytes []byte) (ProposalPreviewRecord, bool, error) {
+	return repository.storeProposalPreview(ctx, authority, &RuntimeLeaseGuard{Authority: lease, Clock: clock}, runID, planningFactBytes, previewFactBytes)
+}
+
+func (repository *Repository) storeProposalPreview(
 	ctx context.Context,
 	authority PrincipalAuthority,
+	lease *RuntimeLeaseGuard,
+	runID string,
 	planningFactBytes []byte,
 	previewFactBytes []byte,
 ) (ProposalPreviewRecord, bool, error) {
@@ -172,6 +196,14 @@ func (repository *Repository) StoreProposalPreview(
 	run, err := scanRunFactTx(ctx, tx, authority.WorkspaceID, proposal.RunID)
 	if err != nil {
 		return ProposalPreviewRecord{}, false, err
+	}
+	if lease != nil {
+		if run.RunID != runID {
+			return ProposalPreviewRecord{}, false, ErrUnauthorized
+		}
+		if err := authorizeRuntimeLeaseTx(ctx, tx, authority.WorkspaceID, proposal.RunID, lease, run); err != nil {
+			return ProposalPreviewRecord{}, false, err
+		}
 	}
 	if proposalRecordValue.ProposalID != preview.ProposalID ||
 		planning.ProposalID != proposal.ProposalID ||
@@ -395,7 +427,7 @@ FOR SHARE`, workspaceID).Scan(&currentWorkspaceRev, &currentRouteRev, &currentOp
 	rows, err := tx.QueryContext(ctx, `SELECT id, content_rev, meta_rev
 FROM workspace_documents
 WHERE workspace_id = $1
-ORDER BY id ASC
+ORDER BY id COLLATE "C" ASC
 FOR SHARE`, workspaceID)
 	if err != nil {
 		return false, err

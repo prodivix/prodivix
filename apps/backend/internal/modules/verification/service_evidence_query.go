@@ -33,6 +33,15 @@ func (service *Service) GetEvidence(
 	return service.repository.GetEvidenceRecord(ctx, workspaceID, evidenceID, service.now())
 }
 
+// GetEvidenceManifest returns the immutable owner fact after the same permission
+// check as the mutable availability projection returned by GetEvidence.
+func (service *Service) GetEvidenceManifest(ctx context.Context, principalID, workspaceID, evidenceID string) (VerificationEvidenceManifest, error) {
+	if err := service.requirePermission(ctx, principalID, workspaceID, "workspace.read"); err != nil {
+		return VerificationEvidenceManifest{}, err
+	}
+	return service.repository.GetEvidenceManifest(ctx, workspaceID, evidenceID)
+}
+
 func (service *Service) ResolveArtifact(
 	ctx context.Context,
 	principalID string,

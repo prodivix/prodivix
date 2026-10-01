@@ -220,7 +220,12 @@ Data、Auth 与 Recovery 使用 Scenario-internal controlled profiles，不继�
 canonical companion manifest 位于
 `packages/golden-conformance/src/goldenG3V6ControlledDimensionManifest.ts`，由
 `test:g3-v6-controlled-dimensions` 精确重跑 8 个 owner suites、绑定 28 个指定 cases，并拒绝所选文件中的任何
-failed/skipped/todo；其 manifest digest 与实际计数必须进入 V6 local/CI evidence。
+failed/skipped/todo；每个 suite 的 owner-passed count 独立绑定 manifest，当前依次为
+`20、9、12、7、14、6、7、53`，总数 `128`。其 manifest digest 与实际计数必须进入 V6 local/CI evidence。
+2026-10-01 的 `recovery-remote-protocol` 增加了取消期间第二个合法 cancellation identity 的 owner regression，
+对应 `remoteExecutionControlPlane.conformance.test.ts` 的
+`accepts a second cancellation identity while cancellation is pending`。该回归计入全部 owner cases，
+不新增 Plan axis、profile 或原有 28 个 bound controlled cases。
 
 ### Target
 

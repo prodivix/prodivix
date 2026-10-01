@@ -86,6 +86,49 @@ satisfied Closure 才成功，失败、取消、恢复、repair 与 rollback 都
 
 ### Backend
 
+2026-10-01 ordinary Runtime G3 driver service 使用现有公开 VerificationRun、AttemptGrant、promotion 和 Artifact
+owner。首次 driver context 在同一事务中校验 current Run lease、human-approved Atomic Commit ACK 与 durable
+AgentRun / VerificationRun link；公开 VerificationPlan codec 校验的 exact Plan wire 和 execution request digest
+进入 migration v52 的只读执行关联，随后 callback 从该关联读取，不能用请求正文改写 Plan 或 Workspace。
+AttemptGrant issue、artifact metadata、attestation challenge 与 Evidence commit 都在真实写事务中反复刷新 clock
+和租约授权；artifact upload 使用独立临时 staging scope，失权旧 upload 清理自己的 bytes，不会删除后继 holder
+已接受的 staging bytes。此链不使用 evaluation private principal / credential。
+
+ordinary driver 使用 Agent Task 的累计 artifact 与 whole-Run wall-time ceiling：每次 AttemptGrant、promotion、
+upload 和 Evidence 写入都在同一事务内验证各 cell、surface、retry 与 rollback 的已预留 artifact metadata；
+新 candidate 必须先预留其声明字节，同一 candidate 重试不重复扣除。AttemptGrant 请求的 expiry 是上界；
+服务器按原 Task/Run 的 deadline 收紧后才交给正式 grant owner，并在实际写入时再次验证。因此只剩短期
+预算的合法任务仍能取得相应短期授权。预算耗尽后仍允许当前授权的真实资源清理，不能通过创建另一
+VerificationRun 重置预算。
+
+actual cleanup receipt 不把 cancellation command、lease renewal 或 transport observation time 当作资源
+清理身份。正常完成后用户再取消，以及 terminal/expired 的 exact ACK-loss 重放，读取同一 immutable fact；
+只读 replay 仍验证当前 owner/actor、绑定的 Task/Run/Plan/request 和已消费的 exact cancellation generation，
+未知或未消费 command、换 owner、变更 actual cleanup 字段均拒绝。首次清理写入保留当前完整授权 fence。
+
+migration v54 保存原始 public VerificationPlan、failed Closure wire 与正式 Closure receipt 的 immutable
+failure material，以及一次性的 parent-to-child repair budget delegation。只有 terminal failed apply Task、
+已完成清理、当前 owner 与 exact parent snapshot/Closure 才能派生新的 repair Task；剩余 usage、cost、调用、
+transaction、artifact 与总墙钟预算继续累计，并扣除下一 repair round。新 Task 绑定当前完整 Workspace revision、
+原 intent/scope 与 required counterexamples，再进入新的 Task admission 和人类审批。公开初建 admission 只接受
+initial lineage，不能自填 parent lineage 或改 Task ID 前缀绕过剩余预算。数据库重读的 admission timestamps
+统一归一为 UTC，保持 challenge/grant identity 在非 UTC host 上一致。
+
+User cancellation 先由 durable exact user command 撤销 Run generation；driver 只能凭 consumed command 和同一
+AgentRun / G3 link 写 cancellation facts 与执行清理，不能再 issue AttemptGrant 或 promote Evidence。running
+cell 的 cancelled report 携带绑定 Run/cell/attempt/command 的清理凭据摘要，不被当作 Evidence。G3 必须 terminal、
+pending promotion 已退休、staging bytes 已清理且实际 driver resource cleanup receipt 已持久化后，Agent 才能
+`cleanup.acknowledged`；从未 admit driver context 的 Run 不制造资源或清理事实。cleanup receipt 忽略 transport
+observedAt、续租身份和当前 cancellation 授权命令，只保存 exact 执行关联和冻结 completedAt。终态后允许
+同一 immutable receipt 只读重试，但仍验证当前 owner/actor、exact Run/Task/generation 与正式 consumed
+cancellation command；授权参数变化不能重写原清理事实。
+
+2026-10-01 lifecycle DELETE 修复：Backend 在首次 dispatch intent / claim 准入前读取 exact cleanup
+claim 对应的 `deletionNotBefore`，创建时间与实际准入时间均必须达到 read lease fence。
+PostgreSQL v49 对 intent、首次 provider-callable claim 和 transport receipt 新写入执行相同校验；
+partial-create cleanup 以其 durable cleanup claim 时间为下界。已持久化的 exact ACK replay 保留
+只读语义，不重新授权 Provider mutation。该修复的远端 Gate 证据等待显式提交推送。
+
 - Agent Task/Run/event/proposal/approval/repository；
 - claim lease、generation fence、idempotency、outbox/commit reconciliation；
 - model/provider/job/tool/media/retrieval gateway 与 callback-bound Secret/network/asset adapter；
@@ -589,6 +632,59 @@ real-model qualification或 satisfied closure已取得：
 | `verify:g4:golden`                | authenticated Catalog full loop                                            |
 | `verify:g4`                       | zero-remote-token deterministic V0-V9 aggregate                            |
 | `verify:g4:closure`               | exact-commit deterministic + model-eval + Golden manifest                  |
+
+## 普通 Task 的生产消费组合
+
+`apps/agent-runtime` 是独立 server/native composition，消费普通 durable Task，不持有 evaluation coordinator
+authority。用户 admission 先由 Backend 冻结 actor/owner/project/Workspace/base/project-policy，worker 再通过
+公开 AI policy intersection owner 与可信 operator profile 生成短期 bounded grant 和 exact effective policy。
+Task 保留项目 policy digest；Context Pack、native capability qualification 与 invocation 使用独立 effective digest，
+两者通过服务端保存的 immutable admission 绑定。浏览器不能自报可信 upstream policy、grant 或资格材料。
+
+普通 worker 使用稳定的 Task-digest Run identity、canonical bootstrap/CAS、lease renew、durable dispatch fence 与
+公开 current reducer。缺少精确 provider/profile/qualification/inference/configuration 时持久化 blocked；不会转用
+浏览器 credential 或 draft transport。长 provider/driver callback 在原 generation 续租并观察 durable cancel。
+queued 与 active 取消通过 consumed user-command link 收尾；实际 G3 job 必须取得正式清理 receipt 后才可 ACK clean。
+
+Explain/plan 的有限最终文本通过独立 `AgentTaskOutput` current factory、strict wire codec 与 append-only Backend
+存储进入用户视图。该事实绑定 Task/Run/generation、completed invocation、Context、项目/effective policy 与内容摘要；
+最大 65,536 UTF-16 units，禁止 raw stream/private reasoning，credential callback 在聚合 delta 和 JSON 解码后扫描
+真实 Secret canary。事件只承载 sanitized receipt。输出 ACK 丢失时重放原事实，不再次调用模型。
+
+Propose/apply 使用公开领域 action registry、dry-run、Impact、G3 Plan 与 exact preview。Apply 只消费用户 approval，
+在实际 G3 driver preflight 确认 projected Workspace、exact registry、required cells 和执行资源后保存正式 Outbox；
+单次 Atomic Commit 内重新检查 lease/generation、approval、base 与 exact request digest。file journal 保留原始
+started receipt/Instant/request，ACK 丢失仍重试同一请求，不自动 rebase。POSIX 组合包括 file/directory fsync；
+Windows atomic link/file flush 的掉电持久性仍需部署文件系统独立资格证明。
+
+真实 ACK 后，public Workspace owner 重算实际 Impact/Plan，再绑定 canonical G3 Run、公开 production adapter、
+AttemptGrant、artifact staging/promotion 和 Evidence owner。Dispatch ACK 只是 transport 收据；只有 exact promoted
+Evidence、当前 retention/provenance view、每个 Run 持久化的 Closure 及 public apply success proof 才能成功。
+当前 ordinary Backend 接受 approved projected Plan 与 ACK actual Plan digest 相等的范围；合法但不同的 compatible
+Plan 要经正式 owner compatibility proof port 后才能执行，当前 fail closed。缺 required Evidence 与 revoked Evidence
+保留 unsatisfied/stale Closure，不形成成功。完整启动配置见 `apps/agent-runtime/README.md`。
+
+Binding 与 rollback required-check retention 都先经 Verification 公开 owner 校验 approved 和 actual Plan 的
+完整内容与 canonical digest，再判断 exact、compatible 或 restored target。仅保留原 digest 的 policy、cell
+retry 或 derived budget 篡改不能通过 exact-digest 分支；原审批 Plan 本身被篡改也不能授权后续验证。
+
+普通 consumer 在首次 Commit 前按 required cells 的正式 adapter `maximumArtifactBytes` 预留共享预算，
+不采用 Plan 的估算 cost 作为执行硬上界。已保存 Started 的请求先 exact replay 恢复 ACK，再继续 G3；
+创建 Run 与调度也只选 required cells。promoted artifact 总量必须为安全整数且不超过原 reservation，
+Closure 的 view、append 和 publish ACK 全部完成后才结算实际耗时，success proof 前再次检查整轮预算与
+当前 lease/abort。冻结 Closure material 保持 ACK-loss 重放的原始身份，同时重新核对当前 revocation。
+
+失败 Closure、完整 Plan 与 promoted Evidence 先进入 immutable failure material，再执行用户显式批准的
+exact reverse Outbox Transaction；rollback 根据 public Workspace commit projection 预先验证目标 revision、
+预算和原 required cells，在实际 reverse ACK 后使用同一 G3 lifecycle 验证 restored target。重启优先恢复
+reverse ACK，原 Task 始终保留 failed verdict。用户可从 clean terminal failed Task 派生新的 repair Task；
+该 Task 消耗父级剩余预算，保持 failure/counterexample/regression requirements，重新 proposal、preview 和
+human approval。后续 satisfied rollback 不隐藏原失败的 repair 操作。取消会重新确认每个已建立的
+commit/rollback G3 Run 的真实资源清理，即使 Run 已终态且上次 cleanup ACK 丢失；正在验证或等待资源
+恢复的 Task 优先继续，避免另一个长模型请求停止其 heartbeat。
+
+这条 ordinary 产品组合的实现与 deterministic/mock transport、真实 PostgreSQL contract Gate 分开记录；
+它不替代 ADR 69 的三 Provider paid real-model qualification、production rootless/browser evidence 或 G4 Exit。
 
 ## 验证证据
 

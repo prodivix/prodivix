@@ -1,13 +1,18 @@
 import {
   appendFileSync,
   lstatSync,
-  readFileSync,
   realpathSync,
   writeFileSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { Command } from 'commander';
+import { readBoundedCliInput } from '../boundedInput.js';
+import {
+  BackendTransportFailure,
+  requestBackend,
+  validateBackendUrl,
+} from '../backendTransport.js';
 import {
   applyVerificationRunEvent,
   assessVerificationCiPromotion,
@@ -87,7 +92,6 @@ export const resolveVerificationPromotionResumeStep = (
 
 const MAXIMUM_JSON_BYTES = 64 * 1024 * 1024;
 const MAXIMUM_NDJSON_BYTES = 64 * 1024 * 1024;
-const MAXIMUM_RESPONSE_CHUNKS = 100_000;
 const ACCESS_TOKEN_ENVIRONMENT_KEY =
   'PRODIVIX_VERIFICATION_ACCESS_TOKEN' as const;
 
@@ -105,9 +109,10 @@ const isRecord = (value: unknown): value is JsonRecord =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const readText = (path: string, maximumBytes: number): string => {
-  const bytes =
-    path === '-' ? readFileSync(0) : readFileSync(path, { flag: 'r' });
-  if (bytes.byteLength < 1 || bytes.byteLength > maximumBytes) {
+  let bytes: Buffer;
+  try {
+    bytes = readBoundedCliInput(path, maximumBytes);
+  } catch {
     throw new VerificationCliFailure(
       'Input is empty or exceeds the bounded CLI contract.',
       EXIT.invalidContract
@@ -387,16 +392,11 @@ const endpointUrl = (
       EXIT.invalidContract
     );
   }
-  if (
-    (base.protocol !== 'https:' &&
-      !(base.protocol === 'http:' && base.hostname === '127.0.0.1')) ||
-    base.username ||
-    base.password ||
-    base.search ||
-    base.hash
-  ) {
+  try {
+    validateBackendUrl(base);
+  } catch {
     throw new VerificationCliFailure(
-      'Verification Backend endpoint must be HTTPS or loopback HTTP and contain no credentials.',
+      'Verification Backend endpoint must be HTTPS or loopback HTTP without credentials, query or fragment.',
       EXIT.invalidContract
     );
   }
@@ -405,90 +405,25 @@ const endpointUrl = (
   return base;
 };
 
-const accessToken = (): string => {
-  const token = process.env[ACCESS_TOKEN_ENVIRONMENT_KEY]?.trim();
-  const containsAsciiControlCharacter =
-    token !== undefined &&
-    [...token].some((character) => {
-      const codePoint = character.codePointAt(0);
-      return (
-        codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)
-      );
-    });
-  if (!token || token.length > 16_384 || containsAsciiControlCharacter) {
-    throw new VerificationCliFailure(
-      `${ACCESS_TOKEN_ENVIRONMENT_KEY} must contain one short-lived access token.`,
-      EXIT.invalidContract
-    );
-  }
-  return token;
-};
-
 const backendRequest = async (
   url: URL,
   init: RequestInit
 ): Promise<Readonly<{ status: number; body: unknown }>> => {
   let response: Response;
   try {
-    response = await fetch(url, {
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${accessToken()}`,
-        ...init.headers,
-      },
-      redirect: 'error',
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch {
+    response = await requestBackend(url, init, ACCESS_TOKEN_ENVIRONMENT_KEY);
+  } catch (error) {
     throw new VerificationCliFailure(
-      'Verification Backend is unavailable.',
-      EXIT.infrastructure
+      error instanceof BackendTransportFailure
+        ? error.message
+        : 'Verification Backend is unavailable.',
+      error instanceof BackendTransportFailure &&
+        error.kind === 'invalid-contract'
+        ? EXIT.invalidContract
+        : EXIT.infrastructure
     );
   }
-  const declaredLength = response.headers.get('content-length');
-  if (
-    declaredLength !== null &&
-    (!/^(?:0|[1-9][0-9]*)$/u.test(declaredLength) ||
-      !Number.isSafeInteger(Number(declaredLength)) ||
-      Number(declaredLength) > MAXIMUM_JSON_BYTES)
-  ) {
-    throw new VerificationCliFailure(
-      'Verification Backend response exceeds its contract budget.',
-      EXIT.infrastructure
-    );
-  }
-  const reader = response.body?.getReader();
-  const chunks: Uint8Array[] = [];
-  let byteLength = 0;
-  if (reader) {
-    for (let index = 0; ; index += 1) {
-      if (index >= MAXIMUM_RESPONSE_CHUNKS) {
-        await reader.cancel();
-        throw new VerificationCliFailure(
-          'Verification Backend response exceeds its contract budget.',
-          EXIT.infrastructure
-        );
-      }
-      const next = await reader.read();
-      if (next.done) break;
-      byteLength += next.value.byteLength;
-      if (byteLength > MAXIMUM_JSON_BYTES) {
-        await reader.cancel();
-        throw new VerificationCliFailure(
-          'Verification Backend response exceeds its contract budget.',
-          EXIT.infrastructure
-        );
-      }
-      chunks.push(next.value);
-    }
-  }
-  const bytes = new Uint8Array(byteLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
   let body: unknown;
   try {
     body =
@@ -729,7 +664,18 @@ const uploadArtifacts = async (input: {
   }
   for (const artifact of input.candidate.artifacts) {
     const path = safeArtifactPath(input.artifactDirectory, artifact.path);
-    const bytes = readFileSync(path);
+    let bytes: Buffer<ArrayBuffer>;
+    try {
+      bytes = readBoundedCliInput(path, artifact.expectedSize, {
+        allowStdin: false,
+        allowEmpty: true,
+      });
+    } catch {
+      throw new VerificationCliFailure(
+        'Evidence artifact exceeds its Candidate descriptor.',
+        EXIT.invalidContract
+      );
+    }
     const digest = `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
     if (
       bytes.byteLength !== artifact.expectedSize ||

@@ -163,7 +163,7 @@ function PdxImageUpload({
         id={inputId}
         multiple={multiple}
         onChange={handleInputChange}
-        required={required}
+        required={required && files.length === 0}
         type="file"
       />
       {previews.length > 0 && (

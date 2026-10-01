@@ -5,6 +5,7 @@ import {
 } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
+import { StringDecoder } from 'node:string_decoder';
 import type {
   ExecutionTerminalSignal,
   ExecutionTerminalSize,
@@ -128,12 +129,17 @@ export const createRootlessPodmanTerminalProcess = (
         }
       );
       onExit = input.onExit;
-      child.stdout.on('data', (chunk: Buffer) =>
-        input.onOutput({ stream: 'stdout', data: chunk.toString('utf8') })
-      );
-      child.stderr.on('data', (chunk: Buffer) =>
-        input.onOutput({ stream: 'stderr', data: chunk.toString('utf8') })
-      );
+      for (const stream of ['stdout', 'stderr'] as const) {
+        const decoder = new StringDecoder('utf8');
+        child[stream].on('data', (chunk: Buffer) => {
+          const data = decoder.write(chunk);
+          if (data) input.onOutput({ stream, data });
+        });
+        child[stream].once('end', () => {
+          const data = decoder.end();
+          if (data) input.onOutput({ stream, data });
+        });
+      }
       child.once('close', (code) => {
         exited = true;
         onExit?.(code ?? undefined);

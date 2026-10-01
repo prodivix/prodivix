@@ -38,6 +38,7 @@ describe('TypeScript project host library resolution', () => {
       revision: '1',
     };
     const project = createTypeScriptCodeProject([artifact]);
+
     const service = project.service;
     const fileName = project.getFileName(artifact.id);
     expect(fileName).not.toBeNull();
@@ -72,15 +73,32 @@ describe('TypeScript project host library resolution', () => {
       revision: '1',
     };
     const project = createTypeScriptCodeProject([artifact]);
+    const fileName = project.getFileName(artifact.id)!;
+    const valueOffset = artifact.source.indexOf('value');
+    expect(
+      ts.displayPartsToString(
+        project.service.getQuickInfoAtPosition(fileName, valueOffset)
+          ?.displayParts
+      )
+    ).toContain(': 1');
 
     expect(
       project.updateArtifacts([
-        { ...artifact, source: 'export const value = 2;' },
+        { ...artifact, source: 'export const value: string = 2;' },
       ])
     ).toBe(true);
     expect(project.getArtifact(artifact.id)?.source).toBe(
-      'export const value = 2;'
+      'export const value: string = 2;'
     );
+    expect(project.service.getSemanticDiagnostics(fileName)).toContainEqual(
+      expect.objectContaining({ code: 2322 })
+    );
+    expect(
+      ts.displayPartsToString(
+        project.service.getQuickInfoAtPosition(fileName, valueOffset)
+          ?.displayParts
+      )
+    ).toContain('string');
     project.dispose();
   });
 });

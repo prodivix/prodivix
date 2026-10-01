@@ -120,6 +120,7 @@ export const runRemoteRegionalRecoveryOperatorJob = async (
   let sourcePool: Pool | undefined;
   let targetPool: Pool | undefined;
   let trafficPool: Pool | undefined;
+  let evidenceHandle: Awaited<ReturnType<typeof open>> | undefined;
   try {
     requestBytes = await readBoundedRemoteRegionalRecoveryFile(
       configuration.requestPath,
@@ -141,6 +142,7 @@ export const runRemoteRegionalRecoveryOperatorJob = async (
     }
     const request =
       decodeRemoteExecutionRegionalRecoveryOperatorRequest(requestText);
+    evidenceHandle = await open(configuration.evidencePath, 'wx', 0o600);
     if (request.mode === 'source-unavailable') {
       if (
         !configuration.infrastructureFenceProofPath ||
@@ -223,6 +225,13 @@ export const runRemoteRegionalRecoveryOperatorJob = async (
       maximumRequestAgeMs: configuration.maximumRequestAgeMs,
       maximumProofLifetimeMs: configuration.maximumProofLifetimeMs,
       maximumAcceptedRpoMs: configuration.maximumAcceptedRpoMs,
+      persistPreparedEvidence: async (evidence) => {
+        await evidenceHandle!.writeFile(
+          encodeRemoteExecutionRegionalRecoveryOperatorEvidence(evidence),
+          { encoding: 'utf8' }
+        );
+        await evidenceHandle!.sync();
+      },
     });
     const result = await operator.execute(request, {
       authorizationGrant,
@@ -235,22 +244,13 @@ export const runRemoteRegionalRecoveryOperatorJob = async (
       throw new TypeError(
         'Remote regional recovery evidence is not durably anchored.'
       );
-    const evidenceHandle = await open(configuration.evidencePath, 'wx', 0o600);
-    try {
-      await evidenceHandle.writeFile(
-        encodeRemoteExecutionRegionalRecoveryOperatorEvidence(result.evidence),
-        { encoding: 'utf8' }
-      );
-      await evidenceHandle.sync();
-    } finally {
-      await evidenceHandle.close();
-    }
   } finally {
     requestBytes?.fill(0);
     authorizationGrant?.fill(0);
     infrastructureFenceProof?.fill(0);
     replicationAttestation?.fill(0);
     await Promise.allSettled([
+      evidenceHandle?.close(),
       sourcePool?.end(),
       targetPool?.end(),
       trafficPool?.end(),

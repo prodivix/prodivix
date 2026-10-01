@@ -237,15 +237,16 @@ func authTokenDigest(token string) string {
 	return hex.EncodeToString(digest[:])
 }
 
-func (store *SessionStore) Delete(token string) {
+func (store *SessionStore) Delete(token string) error {
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	const query = `DELETE FROM sessions WHERE token = $1`
-	_, _ = store.db.ExecContext(ctx, query, authTokenDigest(token))
+	_, err := store.db.ExecContext(ctx, query, authTokenDigest(token))
+	return err
 }
 
 func normalizeEmail(email string) string {

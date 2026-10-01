@@ -1,4 +1,5 @@
 import { compareUnicodeCodePoints } from '@prodivix/shared/canonical';
+import { AGENT_EVALUATION_SEMANTIC_FIXTURE_REFERENCES } from './agentEvaluationSemanticFixtureReferences';
 import type { AgentJsonValue } from '../domain/agent.types';
 import { digestAgentCanonicalValue } from '../domain/agentCanonical';
 import {
@@ -35,6 +36,25 @@ export type AgentPublicEvaluationFixture = Readonly<{
   workspaceFixture: AgentEvaluationWorkspaceFixtureMaterial;
   fixtureDigest: string;
 }>;
+
+export type AgentEvaluationSemanticSymbolRequest = Readonly<{
+  caseId: string;
+  workspaceId: string;
+  documentId: string;
+  nodeId: string;
+}>;
+
+export type AgentEvaluationSemanticSymbolReference = Readonly<{
+  id: string;
+  workspaceId: string;
+  documentId: string;
+  nodeId: string;
+}>;
+
+/** The application resolves opaque semantic IDs through its Authoring owner. */
+export type AgentEvaluationSemanticSymbolResolver = (
+  request: AgentEvaluationSemanticSymbolRequest
+) => AgentEvaluationSemanticSymbolReference;
 
 type FamilyTemplate = Readonly<{
   familyId: string;
@@ -1056,7 +1076,8 @@ const createWorkspaceFixture = (
   template: FamilyTemplate,
   bucket: AgentEvaluationPrimaryBucket,
   familyCaseIndex: number,
-  caseId: string
+  caseId: string,
+  resolveSemanticSymbolID: AgentEvaluationSemanticSymbolResolver
 ): AgentEvaluationWorkspaceFixtureMaterial => {
   const scenario = scenarioSeeds[(familyCaseIndex - 1) % scenarioSeeds.length]!;
   const domain = domainForFamily(template.familyId);
@@ -1076,6 +1097,23 @@ const createWorkspaceFixture = (
   const assetDocumentId = `document.${caseSlug}.asset`;
   const routeNodeId = `route.${caseSlug}.root`;
   const targetNodeId = `node.${caseSlug}.${scenario.targetName}`;
+  const targetSymbol = resolveSemanticSymbolID({
+    caseId,
+    workspaceId,
+    documentId: pageDocumentId,
+    nodeId: targetNodeId,
+  });
+  if (
+    typeof targetSymbol.id !== 'string' ||
+    !targetSymbol.id ||
+    targetSymbol.workspaceId !== workspaceId ||
+    targetSymbol.documentId !== pageDocumentId ||
+    targetSymbol.nodeId !== targetNodeId
+  ) {
+    throw new TypeError(
+      'Evaluation semantic reference does not bind its exact fixture scope.'
+    );
+  }
   const codeSlotId = `route.${routeNodeId}.guard`;
   const controlProfileDigest = digestAgentCanonicalValue({
     profile: 'deterministic-default',
@@ -1242,7 +1280,7 @@ const createWorkspaceFixture = (
           kind: 'semantic-click',
           target: Object.freeze({
             kind: 'semantic-symbol',
-            id: `semantic.${caseSlug}.${scenario.targetName}`,
+            id: targetSymbol.id,
             workspaceDocumentId: pageDocumentId,
             capability: 'behavior:pir:click',
           }),
@@ -1923,13 +1961,15 @@ const baseFixture = (
   template: FamilyTemplate,
   bucket: AgentEvaluationPrimaryBucket,
   familyCaseIndex: number,
-  caseId: string
+  caseId: string,
+  resolveSemanticSymbolID: AgentEvaluationSemanticSymbolResolver
 ): Omit<AgentPublicEvaluationFixture, 'fixtureDigest'> => {
   const workspaceFixture = createWorkspaceFixture(
     template,
     bucket,
     familyCaseIndex,
-    caseId
+    caseId,
+    resolveSemanticSymbolID
   );
   const expected = workspaceFixture.expectedOutcome.proposal;
   const scenarioLabel = workspaceFixture.snapshot.workspaceName;
@@ -1947,7 +1987,9 @@ const baseFixture = (
   });
 };
 
-const createCorpus = (): Readonly<{
+const createCorpus = (
+  resolveSemanticSymbolID: AgentEvaluationSemanticSymbolResolver
+): Readonly<{
   cases: readonly AgentModelEvaluationCase[];
   publicFixtures: readonly AgentPublicEvaluationFixture[];
 }> => {
@@ -1989,7 +2031,13 @@ const createCorpus = (): Readonly<{
       const protectedHoldout = index < holdoutCount;
       const fixture = protectedHoldout
         ? undefined
-        : baseFixture(template, bucket, familyCaseIndex, caseId);
+        : baseFixture(
+            template,
+            bucket,
+            familyCaseIndex,
+            caseId,
+            resolveSemanticSymbolID
+          );
       const fixtureDigest = fixture
         ? digestAgentCanonicalValue(fixture)
         : digestAgentCanonicalValue({
@@ -2085,8 +2133,6 @@ const createCorpus = (): Readonly<{
   });
 };
 
-const corpus = createCorpus();
-
 const createContextTiers = (
   cases: readonly AgentModelEvaluationCase[]
 ): readonly AgentEvaluationContextTier[] =>
@@ -2167,45 +2213,61 @@ const createMediaTiers = (
       )
   );
 
-/** Public metadata and fixtures for the normative 52-family/128-case floor. */
-export const G4_V8_MINIMUM_EVALUATION_CORPUS = Object.freeze({
-  cases: corpus.cases,
-  publicFixtures: corpus.publicFixtures,
-  contextSentinelCaseIds: Object.freeze(
-    corpus.cases
-      .filter(({ contextSentinel }) => contextSentinel)
-      .map(({ caseId }) => caseId)
-      .sort(compareUnicodeCodePoints)
-  ),
-  mediaSentinelCaseIds: Object.freeze(
-    corpus.cases
-      .filter(({ mediaSentinel }) => mediaSentinel)
-      .map(({ caseId }) => caseId)
-      .sort(compareUnicodeCodePoints)
-  ),
-  contextTiers: createContextTiers(corpus.cases),
-  mediaRepresentationTiers: createMediaTiers(corpus.cases),
-  publicCorpusDigest: digestAgentCanonicalValue(corpus.publicFixtures),
-  protectedHoldoutManifestDigest: digestAgentCanonicalValue(
-    corpus.cases
-      .filter(({ access }) => access === 'protected-holdout')
-      .map(
-        ({
-          caseId,
-          familyId,
-          primaryBucket,
-          riskClass,
-          capabilityDescriptorDigest,
-          expectedAuthorityDigest,
-        }) =>
-          Object.freeze({
+/** Builds the normative corpus using the application's public semantic resolver. */
+export const createAgentMinimumEvaluationCorpus = (
+  resolveSemanticSymbolID: AgentEvaluationSemanticSymbolResolver
+) => {
+  const corpus = createCorpus(resolveSemanticSymbolID);
+  return Object.freeze({
+    cases: corpus.cases,
+    publicFixtures: corpus.publicFixtures,
+    contextSentinelCaseIds: Object.freeze(
+      corpus.cases
+        .filter(({ contextSentinel }) => contextSentinel)
+        .map(({ caseId }) => caseId)
+        .sort(compareUnicodeCodePoints)
+    ),
+    mediaSentinelCaseIds: Object.freeze(
+      corpus.cases
+        .filter(({ mediaSentinel }) => mediaSentinel)
+        .map(({ caseId }) => caseId)
+        .sort(compareUnicodeCodePoints)
+    ),
+    contextTiers: createContextTiers(corpus.cases),
+    mediaRepresentationTiers: createMediaTiers(corpus.cases),
+    publicCorpusDigest: digestAgentCanonicalValue(corpus.publicFixtures),
+    protectedHoldoutManifestDigest: digestAgentCanonicalValue(
+      corpus.cases
+        .filter(({ access }) => access === 'protected-holdout')
+        .map(
+          ({
             caseId,
             familyId,
             primaryBucket,
             riskClass,
             capabilityDescriptorDigest,
             expectedAuthorityDigest,
-          })
-      )
-  ),
-});
+          }) =>
+            Object.freeze({
+              caseId,
+              familyId,
+              primaryBucket,
+              riskClass,
+              capabilityDescriptorDigest,
+              expectedAuthorityDigest,
+            })
+        )
+    ),
+  });
+};
+
+/** Frozen public fixture data; application composition verifies these opaque owner references. */
+export const G4_V8_MINIMUM_EVALUATION_CORPUS =
+  createAgentMinimumEvaluationCorpus(
+    ({ caseId, workspaceId, documentId, nodeId }) => ({
+      id: AGENT_EVALUATION_SEMANTIC_FIXTURE_REFERENCES[caseId] ?? '',
+      workspaceId,
+      documentId,
+      nodeId,
+    })
+  );

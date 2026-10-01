@@ -86,9 +86,12 @@ export const buildCodeResourceTreeFromWorkspaceVfs = (
     );
   });
   const includedDirectoryIds = new Set<string>();
-  codeDocumentNodes.forEach((node) => {
+  const emptyDirectories = sortedNodes.filter(
+    (node) => node.kind === 'dir' && (node.children ?? []).length === 0
+  );
+  [...codeDocumentNodes, ...emptyDirectories].forEach((node) => {
     const visited = new Set<string>();
-    let parentId = node.parentId;
+    let parentId = node.kind === 'dir' ? node.id : node.parentId;
     while (parentId && parentId !== treeRootId && !visited.has(parentId)) {
       visited.add(parentId);
       const parent = treeById[parentId];

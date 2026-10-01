@@ -282,6 +282,22 @@ func (store *WorkspaceStore) GetSnapshotForOwner(ctx context.Context, ownerID st
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	snapshot, err := store.GetSnapshotForOwnerTx(ctx, tx, ownerID, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return snapshot, nil
+}
+
+// GetSnapshotForOwnerTx reads and validates the canonical Workspace in the
+// caller's transaction, so a callback-bound projection cannot race its ACK.
+func (store *WorkspaceStore) GetSnapshotForOwnerTx(ctx context.Context, tx *sql.Tx, ownerID, workspaceID string) (*WorkspaceSnapshot, error) {
+	if tx == nil || strings.TrimSpace(ownerID) == "" || strings.TrimSpace(workspaceID) == "" {
+		return nil, ErrWorkspaceNotFound
+	}
 	const workspaceQuery = `SELECT w.id, w.project_id, w.owner_id, w.name, w.workspace_rev, w.route_rev, w.op_seq, w.tree_root_id, w.tree_json, w.created_at, w.updated_at, r.manifest_json, s.settings_json
 FROM workspaces w
 LEFT JOIN workspace_routes r ON r.workspace_id = w.id
@@ -292,7 +308,7 @@ WHERE w.id = $1 AND w.owner_id = $2`
 	var treeBytes []byte
 	var routeBytes []byte
 	var settingsBytes []byte
-	err = tx.QueryRowContext(ctx, workspaceQuery, workspaceID, ownerID).Scan(
+	err := tx.QueryRowContext(ctx, workspaceQuery, workspaceID, ownerID).Scan(
 		&workspace.ID,
 		&workspace.ProjectID,
 		&workspace.OwnerID,
@@ -388,9 +404,6 @@ ORDER BY path ASC`
 	}
 	workspace.TreeRootID = tree.TreeRootID
 	workspace.Tree = canonicalTree
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 
 	return &WorkspaceSnapshot{
 		Workspace:     workspace,

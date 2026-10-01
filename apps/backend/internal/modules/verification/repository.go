@@ -111,6 +111,9 @@ func (repository *Repository) CreatePromotion(
 		return Promotion{}, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return Promotion{}, false, err
+	}
 	if err := repository.lockCurrentWorkspaceAuthorityTx(
 		ctx,
 		tx,
@@ -121,6 +124,9 @@ func (repository *Repository) CreatePromotion(
 	}
 	statementBytes := nullableBytes(input.Promotion.StatementBytes)
 	statementDigest := nullableString(input.Promotion.StatementDigest)
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return Promotion{}, false, err
+	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO verification_promotions (
 	id, workspace_id, project_id, candidate_id, candidate_digest,
 	idempotency_key_hash, capability_hash, nonce_hash, actor_id, state,
@@ -268,6 +274,9 @@ func (repository *Repository) RecordStagedArtifact(
 		return PromotionArtifactRow{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return PromotionArtifactRow{}, err
+	}
 	var state, expectedDigest, expectedMediaType, existingLocator string
 	var deadline time.Time
 	var expectedSize int64
@@ -296,7 +305,19 @@ FOR UPDATE OF p, a`, workspaceID, promotionID, artifactID, capabilityHash).
 		return PromotionArtifactRow{}, ErrArtifactRejected
 	}
 	if existingLocator != "" && existingLocator != stagingLocator {
+		if _, guarded := ctx.Value(writeAuthorizationKey{}).(WriteAuthorization); guarded {
+			if err := authorizeVerificationWrite(ctx, tx); err != nil {
+				return PromotionArtifactRow{}, err
+			}
+			if err := tx.Commit(); err != nil {
+				return PromotionArtifactRow{}, err
+			}
+			return repository.GetPromotionArtifact(ctx, promotionID, artifactID)
+		}
 		return PromotionArtifactRow{}, ErrConflict
+	}
+	if err := authorizeVerificationWrite(ctx, tx); err != nil {
+		return PromotionArtifactRow{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE verification_promotion_artifacts
 SET staging_locator = $4, observed_digest = $5, observed_size = $6,

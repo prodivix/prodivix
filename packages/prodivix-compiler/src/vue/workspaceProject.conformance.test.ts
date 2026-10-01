@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
+import { resolve } from 'node:path';
 import { encodeAnimationDefinition } from '@prodivix/animation';
 import { encodeNodeGraphDocument } from '@prodivix/nodegraph';
 import {
@@ -282,6 +284,73 @@ const domainWorkspace: WorkspaceSnapshot = {
 };
 
 describe('controlled Vue/Vite G2 target', () => {
+  it('typechecks the public operation manifest when the Workspace has no Data operations', () => {
+    const empty: WorkspaceSnapshot = {
+      ...workspace,
+      treeById: {
+        root: {
+          id: 'root',
+          kind: 'dir',
+          name: '/',
+          parentId: null,
+          children: [],
+        },
+      },
+      docsById: {},
+    };
+    const bundle = generateWorkspaceVueViteBundle(empty);
+    const generated = bundle.files.find(
+      ({ path }) => path === 'src/prodivix-data-operations.ts'
+    );
+    expect(typeof generated?.contents).toBe('string');
+    const normalizeHostPath = (path: string) => path.replaceAll('\\', '/');
+    const manifestPath = normalizeHostPath(
+      resolve(process.cwd(), 'src/vue/__empty_operations__.ts')
+    );
+    const consumerPath = normalizeHostPath(
+      resolve(process.cwd(), 'src/vue/__empty_consumer__.ts')
+    );
+    const sources = new Map([
+      [manifestPath, String(generated!.contents)],
+      [
+        consumerPath,
+        "import { prodivixDataOperations } from './__empty_operations__'; export const keys = prodivixDataOperations.map(operation => operation.key + operation.documentId + operation.operationId);",
+      ],
+    ]);
+    const options: ts.CompilerOptions = {
+      strict: true,
+      noEmit: true,
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      skipLibCheck: true,
+      types: [],
+    };
+    const host = ts.createCompilerHost(options);
+    const originalSource = host.getSourceFile,
+      originalExists = host.fileExists,
+      originalRead = host.readFile;
+    host.getSourceFile = (name, languageVersion, onError, createNew) =>
+      sources.has(normalizeHostPath(name))
+        ? ts.createSourceFile(
+            name,
+            sources.get(normalizeHostPath(name))!,
+            languageVersion
+          )
+        : originalSource(name, languageVersion, onError, createNew);
+    host.fileExists = (name) =>
+      sources.has(normalizeHostPath(name)) || originalExists(name);
+    host.readFile = (name) =>
+      sources.get(normalizeHostPath(name)) ?? originalRead(name);
+    const diagnostics = ts.getPreEmitDiagnostics(
+      ts.createProgram([...sources.keys()], options, host)
+    );
+    expect(
+      diagnostics.map((diagnostic) =>
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+      )
+    ).toEqual([]);
+  });
   it('wires protected product routes through the generated Server Runtime client', () => {
     const runtimeRefs = [
       {

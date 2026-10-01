@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentTaskMode, AgentTaskRecord } from '@prodivix/ai';
 import {
   selectWorkspaceAgentPolicyDocument,
@@ -49,6 +49,15 @@ export function AgentTaskComposer({
   const [targetId, setTargetId] = useState(initialTarget.id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pending = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setBusy(false);
+    setError(null);
+    return () => {
+      pending.current?.abort();
+      pending.current = null;
+    };
+  }, [token, projectId, workspace.id, actorId]);
   const policy = useMemo(
     () => selectWorkspaceAgentPolicyDocument(workspace),
     [workspace]
@@ -69,6 +78,9 @@ export function AgentTaskComposer({
         className="mt-3 grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
+          if (pending.current) return;
+          const controller = new AbortController();
+          pending.current = controller;
           setError(null);
           setBusy(true);
           void (async () => {
@@ -86,17 +98,25 @@ export function AgentTaskComposer({
                 projectId,
                 workspaceId: workspace.id,
                 wire: composed.wire,
+                signal: controller.signal,
               });
+              if (controller.signal.aborted || pending.current !== controller)
+                return;
               onCreated(task);
               setIntent('');
             } catch (cause) {
+              if (controller.signal.aborted || pending.current !== controller)
+                return;
               setError(
                 cause instanceof Error
                   ? cause.message
                   : 'Could not create Agent Task.'
               );
             } finally {
-              setBusy(false);
+              if (pending.current === controller) {
+                pending.current = null;
+                setBusy(false);
+              }
             }
           })();
         }}
@@ -193,13 +213,27 @@ export function AgentTaskComposer({
             {error}
           </p>
         ) : null}
+        {busy ? (
+          <p role="status" className="m-0 text-xs text-(--text-secondary)">
+            Checking current policy and the configured runtime grant…
+          </p>
+        ) : null}
         <button
           type="submit"
           disabled={busy || policy?.status !== 'valid'}
-          className="justify-self-start rounded-lg bg-(--accent-primary) px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="justify-self-start rounded-lg bg-(--accent-color) px-4 py-2 text-sm font-semibold text-(--text-inverse) disabled:opacity-50"
         >
           {busy ? 'Creating Task…' : 'Create target-scoped Task'}
         </button>
+        {busy ? (
+          <button
+            type="button"
+            onClick={() => pending.current?.abort()}
+            className="justify-self-start rounded-lg border border-(--border-default) px-4 py-2 text-sm"
+          >
+            Cancel creation
+          </button>
+        ) : null}
       </form>
     </section>
   );
