@@ -12,7 +12,7 @@ RUN cd apps/backend && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s 
 FROM alpine:3.21
 
 RUN addgroup -S app && adduser -S -G app app \
-    && mkdir -p /app/data/verification && chown -R app:app /app/data
+    && mkdir -p /app/data/verification /app/data/uploads && chown -R app:app /app/data
 USER app
 WORKDIR /app
 

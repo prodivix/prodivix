@@ -345,15 +345,9 @@ func LoadConfig() (Config, error) {
 	if agentRuntimeTokenEnv != "" && !regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,127}$`).MatchString(agentRuntimeTokenEnv) {
 		return Config{}, errors.New("BACKEND_AGENT_RUNTIME_TOKEN_ENV must be a server credential environment reference")
 	}
-	databaseURL := strings.TrimSpace(os.Getenv("BACKEND_DB_URL"))
-	if databaseURL == "" {
-		if environment != "development" && environment != "test" {
-			return Config{}, errors.New("BACKEND_DB_URL is required outside development and test")
-		}
-		databaseURL = "postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable"
-	}
-	if environment == "production" && strings.Contains(strings.ToLower(databaseURL), "postgres:postgres@") {
-		return Config{}, errors.New("BACKEND_DB_URL must not use the default postgres password in production")
+	databaseURL, err := loadDatabaseURL(environment)
+	if err != nil {
+		return Config{}, err
 	}
 	dbMaxOpenConns := getEnvInt("BACKEND_DB_MAX_OPEN_CONNS", 10)
 	dbMaxIdleConns := getEnvInt("BACKEND_DB_MAX_IDLE_CONNS", 5)

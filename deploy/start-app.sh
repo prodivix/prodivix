@@ -6,8 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.ghcr.yml"
 ENV_FILE="$SCRIPT_DIR/.env"
 ENV_EXAMPLE_FILE="$SCRIPT_DIR/.env.example"
+. "$SCRIPT_DIR/password-env.sh"
 
-DEFAULT_GHCR_NAMESPACE="mdr-tutorials"
+DEFAULT_GHCR_NAMESPACE="prodivix"
 DEFAULT_IMAGE_TAG="latest"
 DEFAULT_WEB_PORT="4173"
 DEFAULT_SANDBOX_PORT="4174"
@@ -113,7 +114,7 @@ prompt_secret() {
 
   read -r -s -p "$label"
   value="$REPLY"
-  echo
+  echo >&2
   printf '%s' "${value:-$default_value}"
 }
 
@@ -176,6 +177,9 @@ write_env_file() {
   local verification_resume_key="${12}"
   local timezone="${13}"
   local reset_settings=""
+  local encoded_postgres_password
+
+  encoded_postgres_password="$(encode_postgres_password "$postgres_password")"
 
   # Preserve operator-managed SMTP values verbatim; never source the credential file.
   if [[ -f "$ENV_FILE" ]]; then
@@ -189,7 +193,7 @@ IMAGE_TAG=$image_tag
 
 POSTGRES_PORT=$postgres_port
 POSTGRES_USER=$postgres_user
-POSTGRES_PASSWORD=$postgres_password
+POSTGRES_PASSWORD=$encoded_postgres_password
 POSTGRES_DB=$postgres_db
 
 BACKEND_PORT=$backend_port
@@ -216,8 +220,13 @@ load_env_value() {
   if [[ -f "$file" ]]; then
     local line
     line="$(grep -E "^${key}=" "$file" | tail -n 1 || true)"
+    line="${line%$'\r'}"
     if [[ -n "$line" ]]; then
-      printf '%s' "${line#*=}"
+      if [[ "$key" == "POSTGRES_PASSWORD" ]]; then
+        decode_postgres_password "${line#*=}"
+      else
+        printf '%s' "${line#*=}"
+      fi
       return
     fi
   fi
@@ -259,7 +268,7 @@ current_postgres_port="$(load_env_value POSTGRES_PORT "$DEFAULT_POSTGRES_PORT" "
 current_postgres_user="$(load_env_value POSTGRES_USER "$DEFAULT_POSTGRES_USER" "$ENV_FILE")"
 current_postgres_password="$(load_env_value POSTGRES_PASSWORD "" "$ENV_FILE")"
 current_postgres_db="$(load_env_value POSTGRES_DB "$DEFAULT_POSTGRES_DB" "$ENV_FILE")"
-current_allowed_origins="$(load_env_value BACKEND_ALLOWED_ORIGINS "http://localhost:${current_web_port}" "$ENV_FILE")"
+current_allowed_origins="$(load_env_value BACKEND_ALLOWED_ORIGINS "" "$ENV_FILE")"
 current_token_ttl="$(load_env_value BACKEND_TOKEN_TTL "$DEFAULT_TOKEN_TTL" "$ENV_FILE")"
 current_verification_resume_key="$(load_env_value BACKEND_VERIFICATION_RESUME_KEY "" "$ENV_FILE")"
 current_tz="$(load_env_value TZ "$DEFAULT_TZ" "$ENV_FILE")"
@@ -286,14 +295,10 @@ if [[ -z "$current_postgres_password" || "$current_postgres_password" == "postgr
   current_postgres_password="$generated_password"
 fi
 postgres_password="$(prompt_secret "Postgres password [hidden, press Enter to keep/generate]: " "$current_postgres_password")"
-if [[ ! "$postgres_password" =~ ^[A-Za-z0-9._~!@%+=:,/-]+$ ]]; then
-  echo "Postgres password contains characters that cannot be represented safely in the deployment .env file." >&2
-  echo "Use letters, digits, or one of . _ ~ ! @ % + = : , / -." >&2
-  exit 1
-fi
+encode_postgres_password "$postgres_password" >/dev/null
 
 postgres_db="$(prompt "Postgres database" "${current_postgres_db:-$DEFAULT_POSTGRES_DB}")"
-allowed_origins="$(prompt "Allowed browser origins" "$current_allowed_origins")"
+allowed_origins="$(prompt "Allowed browser origins" "${current_allowed_origins:-http://localhost:${web_port},http://127.0.0.1:${web_port}}")"
 token_ttl="$(prompt "Backend token TTL" "${current_token_ttl:-$DEFAULT_TOKEN_TTL}")"
 if [[ -z "$current_verification_resume_key" || "$current_verification_resume_key" == "$PLACEHOLDER_VERIFICATION_RESUME_KEY" ]]; then
   current_verification_resume_key="$(generate_verification_resume_key)"

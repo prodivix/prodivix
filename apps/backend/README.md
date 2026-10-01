@@ -367,7 +367,13 @@ client-only target 仍不得解析 Secret，Worker、snapshot、artifact 与 Pre
 - 主数据库为 PostgreSQL，驱动使用 `pgx`。
 - 当前迁移语句位于 `internal/platform/database/database.go`，服务启动时执行。
 - 本地开发可在 `apps/backend` 中运行 `docker compose up -d`。
-- 默认连接串为 `postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable`。
+- development/test 的默认连接串为 `postgres://postgres:postgres@localhost:5432/prodivix?sslmode=disable`；
+  production 必须显式配置，并拒绝默认 `postgres/postgres` 凭据。
+- `BACKEND_DB_URL` 与结构化的 `BACKEND_DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE` 二选一。
+  结构化模式必须提供全部六个字段，Backend 统一编码 URI；用户名、密码与数据库名使用原始值，
+  不需要手工百分号编码，且不会 trim。HOST 为裸主机名或 IP，IPv6 不带方括号；PORT 为 1–65535；
+  SSLMODE 接受 `disable/allow/prefer/require/verify-ca/verify-full`。
+  数据库配置只从服务端环境注入，不得写入 Browser、Workspace 或日志。
 - Windows 原生开发脚本读取仓库根目录 `.env.local`；可从 `.env.example` 复制后设置 `BACKEND_DB_URL`。
 - Environment/Secret 表由同一启动迁移创建；生产部署必须从 Secret manager 注入 KMS key ring。key material
   不得提交到仓库、日志、Workspace、ExecutionRequest、Control Plane 或 Worker envelope；at-rest key id 也不进入

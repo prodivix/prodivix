@@ -31,6 +31,11 @@ chmod +x ./start-app.sh
 ```
 
 默认数据库端口只绑定 `127.0.0.1:5432`，避免直接暴露到公网。
+交互脚本默认允许 `localhost` 和 `127.0.0.1` 两个 Web Origin，端口取最终选择的
+`WEB_PORT`；已有显式 allowlist 会保留。公网部署必须填写实际浏览器访问的 Origin。
+Postgres 密码可包含空格、美元符号、单双引号、反斜杠与 URI 特殊字符。脚本把密码写成
+双引号 dotenv 字面值，转义反斜杠、双引号，并将美元符号写成 `$$`，避免 Compose 插值；
+重复部署会还原这个字面值。空密码、换行以及环境变量无法表示的 NUL 不适用于此脚本。
 
 ## 3) 手动拉取并启动
 
@@ -45,14 +50,22 @@ docker compose -f docker-compose.ghcr.yml --env-file .env up -d
 ## 4) 关键配置说明
 
 - `deploy/docker-compose.ghcr.yml`
-  - `web` 使用 Nginx 托管前端，并将 `/api/*` 反向代理到 `backend`。
+  - `web` 使用 Nginx 托管前端，并将 `/api/*` 与 `/uploads/*` 反向代理到 `backend`。
+    头像上传路由单独允许 3 MiB 请求体，以容纳 Backend 的 2 MiB 图片和 multipart 封装；
+    `/uploads/*` 的未知文件由 Backend 返回 404，不回退到 SPA。
   - `sandbox` 使用独立 Nginx 容器和端口托管 opaque plugin broker，不携带登录 Cookie 或用户数据；未知路径固定返回 404。
-  - `backend` 通过 `BACKEND_DB_URL` 连接 `postgres`；`BACKEND_VERIFICATION_RESUME_KEY`
+  - `backend` 通过 `BACKEND_DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE` 连接 `postgres`，
+    URI 编码由 Backend 配置 owner 完成；Compose 显式清空 `BACKEND_DB_URL`，防止可选的
+    `backend.env` 注入另一份数据库连接配置。独立运行 Backend 时仍可使用 `BACKEND_DB_URL`，
+    但不能与结构化字段混用。`BACKEND_VERIFICATION_RESUME_KEY`
     必须在所有 Backend replica 和 active promotion 恢复窗口内保持一致。轮换前应先排空旧恢复窗口。
   - `backend` 将 Verification artifact 字节保存在 `verification-artifacts` named volume，固定路径为
     `/app/data/verification`；镜像预先创建由运行用户拥有的目录。备份与恢复必须同时包含 PostgreSQL
-    和这个 volume，恢复期间停止写入；只恢复数据库不能恢复 artifact 字节。`docker compose down -v`
-    会删除这两份持久数据。
+    和这个 volume，恢复期间停止写入；只恢复数据库不能恢复 artifact 字节。
+  - 上传头像保存在 `avatar-uploads` named volume，路径为 `/app/data/uploads`；镜像同样预先创建
+    运行用户拥有的目录，新建 volume 会继承这些权限。已有自建 volume 或 bind mount 必须由
+    运维设置相同用户的写权限。备份需同时包含数据库和头像 volume；旧容器 writable layer 中的
+    头像需在首次重建前迁移到该 volume。`docker compose down -v` 会删除所有 named volume。
   - 密码重置配置通过 `BACKEND_PASSWORD_RESET_URL/TTL` 与 `BACKEND_SMTP_HOST/PORT/FROM/USERNAME/PASSWORD/TLS_MODE`
     显式传入 Backend。生产 reset URL 必须是无 query/fragment 的可信 HTTPS 页面，例如
     `https://editor.example.com/reset-password`；SMTP 使用 `starttls` 或 `implicit`。
@@ -64,6 +77,8 @@ docker compose -f docker-compose.ghcr.yml --env-file .env up -d
   - 通过 `VITE_API_BASE=/` 构建前端，运行时走同域 `/api`。
   - Nginx 在成功和错误响应上发送 `Cross-Origin-Opener-Policy: same-origin` 与
     `Cross-Origin-Embedder-Policy: credentialless`，与开发环境保持相同的浏览器运行时隔离条件。
+  - 明文 CSP 来源只允许明确的 `localhost` 与 `127.0.0.1` loopback host；这两种本地访问方式
+    都能连接独立 sandbox 与 runner 端口。公网部署应收窄 HTTPS host allowlist。
   - GitHub Actions repository variable `VITE_PLUGIN_SANDBOX_URL` 必须配置为公开 sandbox origin 的 `runtime-broker.html` URL；未配置时 runtime activation 保持 fail closed。
 - `apps/plugin-sandbox/Dockerfile`
   - 构建时生成带脚本哈希的 CSP、Permissions Policy、Cloudflare `_headers` 和 production `nginx.conf`。

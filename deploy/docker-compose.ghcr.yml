@@ -38,8 +38,14 @@ services:
     environment:
       BACKEND_ADDR: ':8080'
       APP_ENV: production
-      BACKEND_ALLOWED_ORIGINS: ${BACKEND_ALLOWED_ORIGINS:-http://localhost:4173}
-      BACKEND_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-prodivix}?sslmode=disable
+      BACKEND_ALLOWED_ORIGINS: ${BACKEND_ALLOWED_ORIGINS:-http://localhost:${WEB_PORT:-4173},http://127.0.0.1:${WEB_PORT:-4173}}
+      BACKEND_DB_URL: ''
+      BACKEND_DB_HOST: postgres
+      BACKEND_DB_PORT: '5432'
+      BACKEND_DB_USER: ${POSTGRES_USER:-postgres}
+      BACKEND_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      BACKEND_DB_NAME: ${POSTGRES_DB:-prodivix}
+      BACKEND_DB_SSLMODE: disable
       BACKEND_TOKEN_TTL: ${BACKEND_TOKEN_TTL:-24h}
       BACKEND_VERIFICATION_RESUME_KEY: ${BACKEND_VERIFICATION_RESUME_KEY:?set BACKEND_VERIFICATION_RESUME_KEY}
       BACKEND_VERIFICATION_ARTIFACT_ROOT: /app/data/verification
@@ -57,6 +63,7 @@ services:
       BACKEND_DB_MIGRATION_TIMEOUT: ${BACKEND_DB_MIGRATION_TIMEOUT:-2m}
     volumes:
       - verification-artifacts:/app/data/verification
+      - avatar-uploads:/app/data/uploads
     healthcheck:
       test:
         ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:8080/api/ping || exit 1']
@@ -95,3 +102,4 @@ services:
 volumes:
   postgres-data:
   verification-artifacts:
+  avatar-uploads:

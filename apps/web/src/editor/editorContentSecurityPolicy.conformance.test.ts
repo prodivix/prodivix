@@ -81,8 +81,25 @@ describe('editor Content-Security-Policy', () => {
       .filter((source) => source.startsWith('http://') || source === 'http:');
     httpSources.forEach((source) =>
       expect(source, `${source} must be loopback`).toMatch(
-        /^http:\/\/localhost(:\*|:\d+)?$/
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\*|:\d+)?$/
       )
+    );
+  });
+
+  it.each(['img-src', 'media-src', 'frame-src', 'connect-src'])(
+    'permits both supported loopback hosts in %s',
+    (name) => {
+      expect(directive(name)).toContain('http://localhost:*');
+      expect(directive(name)).toContain('http://127.0.0.1:*');
+    }
+  );
+
+  it('permits websocket connections only to explicit loopback hosts over plaintext', () => {
+    const sources = directive('connect-src').filter((source) =>
+      source.startsWith('ws:')
+    );
+    expect(new Set(sources)).toEqual(
+      new Set(['ws://localhost:*', 'ws://127.0.0.1:*'])
     );
   });
 
