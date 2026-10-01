@@ -11,6 +11,10 @@ import {
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { compareUnicodeCodePoints } from '/opt/prodivix/codePointOrder.ts';
+import {
+  createSandboxPackageManagerEnvironments,
+  sandboxInstallCachePaths,
+} from './packageManagerEnvironment.mjs';
 
 const allowedCommands = new Set([
   'npm',
@@ -778,36 +782,11 @@ try {
     payload.ignoredDirectories,
     'Sandbox ignored directories'
   );
-  const environment = { PATH: process.env.PATH, HOME: '/tmp' };
-  if (!Array.isArray(payload.publicEnvironment))
-    throw new TypeError('Sandbox public environment is invalid.');
-  for (const entry of payload.publicEnvironment) {
-    if (
-      !entry ||
-      typeof entry.name !== 'string' ||
-      typeof entry.value !== 'string' ||
-      !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(entry.name)
-    )
-      throw new TypeError('Sandbox public environment entry is invalid.');
-    environment[entry.name] = entry.value;
-  }
-  const installEnvironment = { ...environment };
-  for (const name of ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY']) {
-    if (typeof process.env[name] === 'string')
-      installEnvironment[name] = process.env[name];
-  }
-  const installCachePaths = [
-    '/tmp/.prodivix-npm-cache',
-    '/tmp/.prodivix-pnpm-store',
-    '/tmp/.prodivix-yarn-cache',
-    '/tmp/.prodivix-bun-cache',
-  ];
-  Object.assign(installEnvironment, {
-    npm_config_cache: installCachePaths[0],
-    npm_config_store_dir: installCachePaths[1],
-    YARN_CACHE_FOLDER: installCachePaths[2],
-    BUN_INSTALL_CACHE_DIR: installCachePaths[3],
-  });
+  const { executionEnvironment, installEnvironment } =
+    createSandboxPackageManagerEnvironments(
+      process.env,
+      payload.publicEnvironment
+    );
   const installExitCode = await run(
     command(payload.installCommand),
     installEnvironment,
@@ -818,14 +797,18 @@ try {
     emitResult(installExitCode, output);
   } else {
     await Promise.all(
-      installCachePaths.map((path) =>
+      sandboxInstallCachePaths.map((path) =>
         rm(path, { recursive: true, force: true })
       )
     );
     await terminateResidualProcesses();
     const executionPermission = await awaitExecutionPermission(payload);
     await writeServerFunctionRuntimeProjection(payload, executionPermission);
-    const exitCode = await run(command(payload.command), environment, append);
+    const exitCode = await run(
+      command(payload.command),
+      executionEnvironment,
+      append
+    );
     await terminateResidualProcesses();
     await awaitCapturePermission(payload);
     let resultExitCode = exitCode;
