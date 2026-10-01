@@ -9,5 +9,12 @@ export default defineConfig({
       },
     ],
   },
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    // Each file loads the public corpus; bound its worker pool on shared CI runners.
+    maxWorkers: 1,
+    fileParallelism: false,
+    isolate: true,
+  },
 });

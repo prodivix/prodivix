@@ -46,7 +46,9 @@ jobs:
         # with the other packages on the same runner.
         # The agent-evaluation-runner suite materializes the full G4 V8 corpus
         # per test and belongs to the dedicated G4 V8 workflow.
-        run: pnpm turbo run test --filter=!@prodivix/web --filter=!@prodivix/ai --filter=!@prodivix/agent-evaluation-runner
+        # Bound package pools to the runner's two CPUs; each package also owns
+        # its Vitest workers and durable I/O must retain its existing timeout.
+        run: pnpm turbo run test --concurrency=2 --filter=!@prodivix/web --filter=!@prodivix/ai --filter=!@prodivix/agent-evaluation-runner
 
   ai:
     name: AI
