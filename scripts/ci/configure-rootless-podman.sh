@@ -10,9 +10,13 @@ fail() {
 }
 
 case "${ImageOS:-}:${ImageVersion:-}" in
-  # The 20260907 image returned to Ubuntu's packaged Podman/crun/conmon family.
+  # These September images use Ubuntu's packaged Podman/crun/conmon family.
   # https://github.com/actions/runner-images/releases/tag/ubuntu24/20260907.300
-  ubuntu24:20260720.247.2|ubuntu24:20260907.300.1)
+  # https://github.com/actions/runner-images/releases/tag/ubuntu24/20260920.314
+  # https://github.com/actions/runner-images/releases/tag/ubuntu24/20260927.320
+  # The exact image tests pin /usr/bin/podman; their noble dependencies
+  # install /usr/bin/crun and /usr/bin/conmon. Runtime selection remains checked below.
+  ubuntu24:20260720.247.2|ubuntu24:20260907.300.1|ubuntu24:20260920.314.1|ubuntu24:20260927.320.1)
     expected_podman_path='/usr/bin/podman'
     expected_podman_version='podman version 4.9.3'
     expected_oci_runtime_path='/usr/bin/crun'

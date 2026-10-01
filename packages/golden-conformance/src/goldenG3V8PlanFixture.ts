@@ -73,4 +73,4 @@ export const GOLDEN_G3_V8_PLAN: VerificationPlan = planResult.plan;
 
 // Updated only when the reviewed canonical V8 policy, matrix, or baseline identity changes.
 export const GOLDEN_G3_V8_LOCKED_PLAN_DIGEST =
-  'sha256-ba89d3a004838d2132790df890165bd6d4b6e492b44326cfd0ba62d2abe13bde';
+  'sha256-13a6055440b9956d9f16b2d93586340ab6f7cf6c1310f5c89be4724d6a9c445e';

@@ -30,14 +30,14 @@ gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
   });
 
   it('pre-adopts every visual cell for Windows and the active Linux rollout', () => {
-    expect(GOLDEN_G3_V6_VISUAL_BASELINE_SET.entries).toHaveLength(72);
+    expect(GOLDEN_G3_V6_VISUAL_BASELINE_SET.entries).toHaveLength(96);
     expect(
       new Set(
         GOLDEN_G3_V6_VISUAL_BASELINE_SET.entries.map(
           ({ compatibilityProfileDigest }) => compatibilityProfileDigest
         )
       ).size
-    ).toBe(72);
+    ).toBe(96);
   });
 
   it('binds each platform and engine to an independently recomputable Playwright image receipt', () => {
@@ -202,44 +202,71 @@ gatedDescribe('Golden G3 V6 pre-adopted browser identities', () => {
     }
   });
 
-  it('binds the September rollout to its exact image and kernel without reusing an older OS identity', () => {
-    const observed = {
-      platform: 'linux',
-      architecture: 'x64',
-      kernelRelease: '6.17.0-1022-azure',
-      githubActions: 'true',
-      imageOS: 'ubuntu24',
-      imageVersion: '20260907.300.1',
-    };
-    const platformId = selectGoldenG3V6ControlledPlatform(observed);
-    expect(platformId).toBe('linux-20260907');
-    const identity =
-      GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY.operatingSystemImages[platformId];
-    expect(identity.imageVersion).toBe(observed.imageVersion);
-    expect(identity.kernelRelease).toBe(observed.kernelRelease);
-    expect(identity.digest).not.toBe(
-      GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY.operatingSystemImages[
-        'linux-20260726'
-      ].digest
-    );
-    const baselineEntries = GOLDEN_G3_V6_VISUAL_BASELINE_SET.entries.filter(
-      ({ id }) => id.endsWith(`:${platformId}`)
-    );
-    expect(baselineEntries).toHaveLength(12);
-    expect(new Set(baselineEntries.map(({ adoptedAt }) => adoptedAt))).toEqual(
-      new Set(['2026-09-12T00:00:00.000Z'])
-    );
-    for (const drift of [
-      { imageVersion: '20260907.300.2' },
-      { kernelRelease: '6.17.0-1020-azure' },
-      { kernelRelease: '6.17.0-1023-azure' },
-      { imageOS: 'ubuntu22' },
-      { architecture: 'arm64' },
-      { githubActions: 'false' },
-    ]) {
-      expect(() =>
-        selectGoldenG3V6ControlledPlatform({ ...observed, ...drift })
-      ).toThrow(/no pre-adopted/u);
+  it('binds each September rollout to its exact image and kernel without reusing an older OS identity', () => {
+    const rollouts = [
+      {
+        platformId: 'linux-20260907',
+        imageVersion: '20260907.300.1',
+        driftedImageVersion: '20260907.300.2',
+        adoptedAt: '2026-09-12T00:00:00.000Z',
+      },
+      {
+        platformId: 'linux-20260920',
+        imageVersion: '20260920.314.1',
+        driftedImageVersion: '20260920.314.2',
+        adoptedAt: '2026-10-01T00:00:00.000Z',
+      },
+      {
+        platformId: 'linux-20260927',
+        imageVersion: '20260927.320.1',
+        driftedImageVersion: '20260927.320.2',
+        adoptedAt: '2026-10-01T00:00:00.000Z',
+      },
+    ] as const;
+    const rolloutDigests = new Set<string>();
+    for (const rollout of rollouts) {
+      const observed = {
+        platform: 'linux',
+        architecture: 'x64',
+        kernelRelease: '6.17.0-1022-azure',
+        githubActions: 'true',
+        imageOS: 'ubuntu24',
+        imageVersion: rollout.imageVersion,
+      };
+      const platformId = selectGoldenG3V6ControlledPlatform(observed);
+      expect(platformId).toBe(rollout.platformId);
+      const identity =
+        GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY.operatingSystemImages[
+          platformId
+        ];
+      expect(identity.imageVersion).toBe(observed.imageVersion);
+      expect(identity.kernelRelease).toBe(observed.kernelRelease);
+      expect(identity.digest).not.toBe(
+        GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY.operatingSystemImages[
+          'linux-20260726'
+        ].digest
+      );
+      rolloutDigests.add(identity.digest);
+      const baselineEntries = GOLDEN_G3_V6_VISUAL_BASELINE_SET.entries.filter(
+        ({ id }) => id.endsWith(`:${platformId}`)
+      );
+      expect(baselineEntries).toHaveLength(12);
+      expect(
+        new Set(baselineEntries.map(({ adoptedAt }) => adoptedAt))
+      ).toEqual(new Set([rollout.adoptedAt]));
+      for (const drift of [
+        { imageVersion: rollout.driftedImageVersion },
+        { kernelRelease: '6.17.0-1020-azure' },
+        { kernelRelease: '6.17.0-1023-azure' },
+        { imageOS: 'ubuntu22' },
+        { architecture: 'arm64' },
+        { githubActions: 'false' },
+      ]) {
+        expect(() =>
+          selectGoldenG3V6ControlledPlatform({ ...observed, ...drift })
+        ).toThrow(/no pre-adopted/u);
+      }
     }
+    expect(rolloutDigests.size).toBe(rollouts.length);
   });
 });

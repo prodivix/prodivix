@@ -23,8 +23,9 @@ import {
   type GoldenG3V4ChangeKind,
 } from './goldenG3VerificationPlanFixture';
 
+// Semantic schema/provider and compiler/planner identities are canonical SHA-256 values.
 const EXPECTED_PLAN_DIGEST =
-  'sha256-e538301b3cbd943133904591a0c97e00870d2ed9a9c21f96e212aaf9d2eea838';
+  'sha256-ced11fb3adaff736e3cbf43e8d647b7b63e9060829caf10fcbfdd14702e273fd';
 
 describe('G3 V4 Impact, Policy, and Plan Golden', () => {
   it('explains PIR, Data, Route guard, NodeGraph, Animation, and shared CodeSlot impact', () => {

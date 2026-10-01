@@ -19,6 +19,8 @@ export type GoldenG3V6ControlledPlatform =
   | 'linux-20260810'
   | 'linux-20260816'
   | 'linux-20260907'
+  | 'linux-20260920'
+  | 'linux-20260927'
   | 'windows';
 
 export const GOLDEN_G3_V6_VISUAL_NORMALIZER = Object.freeze({
@@ -86,6 +88,28 @@ const CONTROLLED_OS_IMAGES = Object.freeze({
     digest:
       'sha256-51bf56ab968bb6389b1650d342aea823420344599c40587010ea712a079016a8',
     machineClass: 'github-actions-ubuntu-24-04-x64-20260907',
+  }),
+  // Exact official image manifest: actions/runner-images@e75633902841aa5479c759492b73409e6d317f12.
+  'linux-20260920': Object.freeze({
+    platform: 'linux',
+    architecture: 'x64',
+    image: 'github-actions-ubuntu-24.04',
+    imageVersion: '20260920.314.1',
+    kernelRelease: '6.17.0-1022-azure',
+    digest:
+      'sha256-6ae436ec89f52ec33024e0569a90dda029649c270088118eba103831c505c8b0',
+    machineClass: 'github-actions-ubuntu-24-04-x64-20260920',
+  }),
+  // Exact official image manifest: actions/runner-images@1275e33f5019b02660b81ecc5622fe196211fa89.
+  'linux-20260927': Object.freeze({
+    platform: 'linux',
+    architecture: 'x64',
+    image: 'github-actions-ubuntu-24.04',
+    imageVersion: '20260927.320.1',
+    kernelRelease: '6.17.0-1022-azure',
+    digest:
+      'sha256-f230ff7c9551b17d86ba7bb61f68d696e5bef2efd2805c3a9fe02bfa572c7a38',
+    machineClass: 'github-actions-ubuntu-24-04-x64-20260927',
   }),
 });
 
@@ -262,6 +286,8 @@ const CONTROLLED_BROWSER_IMAGES_BY_PLATFORM = Object.freeze({
   'linux-20260810': LINUX_BROWSER_IMAGES,
   'linux-20260816': LINUX_BROWSER_IMAGES,
   'linux-20260907': LINUX_BROWSER_IMAGES,
+  'linux-20260920': LINUX_BROWSER_IMAGES,
+  'linux-20260927': LINUX_BROWSER_IMAGES,
 } satisfies Readonly<
   Record<
     GoldenG3V6ControlledPlatform,
@@ -276,7 +302,7 @@ export const GOLDEN_G3_V6_FONT_FREE_SET_DIGEST =
   'sha256-cdc0cdb0eee82b4b1039323c9f4dde0b85c19aa3a207ef7426a61531764edb89';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY_DIGEST =
-  'sha256-6c03edb3eacc41de106508607078f2ca0309329f2eb0d73773cdd2df166da401';
+  'sha256-6e703d48f4b29239365dca08b94603f3b876cb5a4c43ef6d88c47ca79047c642';
 
 export const GOLDEN_G3_V6_BROWSER_IDENTITY_REGISTRY = Object.freeze({
   format: 'prodivix.golden-g3-v6-browser-identity-registry',

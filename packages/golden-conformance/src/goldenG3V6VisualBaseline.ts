@@ -59,6 +59,8 @@ const platformCompatibilityAdoptedAt: Readonly<
   'linux-20260810': '2026-09-12T00:00:00.000Z',
   'linux-20260816': '2026-09-12T00:00:00.000Z',
   'linux-20260907': '2026-09-12T00:00:00.000Z',
+  'linux-20260920': '2026-10-01T00:00:00.000Z',
+  'linux-20260927': '2026-10-01T00:00:00.000Z',
 });
 const entry = (
   frameworkTarget: string,

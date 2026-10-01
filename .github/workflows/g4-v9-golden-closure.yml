@@ -236,7 +236,7 @@ jobs:
           test "${ImageOS:-}" = 'ubuntu24'
           case "${ImageVersion:-}:$(uname -r)" in
             20260720.247.2:6.17.0-1020-azure|20260726.254.1:6.17.0-1020-azure) ;;
-            20260810.271.1:6.17.0-1022-azure|20260816.277.1:6.17.0-1022-azure|20260907.300.1:6.17.0-1022-azure) ;;
+            20260810.271.1:6.17.0-1022-azure|20260816.277.1:6.17.0-1022-azure|20260907.300.1:6.17.0-1022-azure|20260920.314.1:6.17.0-1022-azure|20260927.320.1:6.17.0-1022-azure) ;;
             *)
               echo "::error::Runner image/kernel is not pre-adopted: ${ImageVersion:-missing}:$(uname -r)"
               exit 1
